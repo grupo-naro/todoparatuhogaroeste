@@ -9,5 +9,8 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  resolve: { alias: {
+    '@': fileURLToPath(new URL('./src', import.meta.url)),
+    'server-only': fileURLToPath(new URL('./src/test/empty.ts', import.meta.url)),
+  } },
 })

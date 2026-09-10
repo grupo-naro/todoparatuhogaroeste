@@ -61,8 +61,9 @@ migración disruptiva.
 | Framework | **Next.js 16.3.4** (App Router) + **React 19.2** | Turbopack por defecto; Request APIs asíncronas (`params`, `searchParams`, `cookies()`); `proxy.ts` reemplaza a `middleware.ts`. Ya inicializado en el repo. |
 | Lenguaje | **TypeScript 5** `strict` | Ya configurado. Alias `@/*` → `src/*`. |
 | Estilos | **Tailwind CSS v4** | Ya configurado vía `@tailwindcss/postcss`. |
-| Componentes UI | **Primitivas propias** (patrón shadcn/ui, sin CLI) sobre `@radix-ui/react-*` + `lucide-react` | Se copian solo 8 componentes: `Button`, `Input`, `Select`, `Dialog`, `Popover`, `Toast`, `Badge`, `Table`. Evita fricción del CLI de shadcn con Tailwind v4 + React 19. |
-| Grilla fast-entry | **`@tanstack/react-table` v8** (headless) + navegación por teclado propia | Sin licencias, control total del UX de tabulación (Enter / Tab / flechas). |
+| Componentes UI | **Primitivas propias** (patrón shadcn/ui, sin CLI) sobre `@radix-ui/react-*` + `lucide-react` | Se copian solo 8 componentes: `Button`, `Input`, `Select`, `Dialog`, `Popover`, `Toast`, `Badge`, `Table`. Todas con targets ≥ 44px y `Dialog` como bottom-sheet en `< sm`. Evita fricción del CLI de shadcn con Tailwind v4 + React 19. |
+| Grilla fast-entry | **`@tanstack/react-table` v8** (headless) + navegación por teclado propia + modo tarjeta táctil | Sin licencias, control total del UX (Enter / Tab / flechas en `≥ md`; tarjetas con stepper −／＋ en `< md`). |
+| Responsive / dispositivos | **Tailwind v4** (breakpoints default) + hook `useMediaQuery` propio | Sin librería nueva. iPad (principal, con teclado), computadora y celular. Ver §3.7. |
 | ORM | **Prisma** | Schema declarativo, migraciones automáticas, tipado. |
 | Base de datos | **PostgreSQL en Neon** | Connection string *pooled* (`-pooler`) para funciones serverless de Vercel. |
 | Autenticación | **Sesión propia mínima**: JWT firmado con `jose` en cookie `httpOnly` + `bcryptjs` | ~150 LOC. Se descarta `next-auth@5` por estar en beta y el riesgo con Next 16 en un deadline. |
@@ -118,14 +119,19 @@ src/
 
   components/
     ui/                     # Button Input Select Dialog Popover Toast Badge Table
-    layout/                 # Sidebar, Header, NavLink
-    grid/                   # FastEntryGrid, GridRow, useGridKeyboardNav
-    forms/                  # ProductForm, VariantFields, CategoryForm, UserForm
+                            #   (targets >=44px; Dialog = bottom-sheet en <sm)
+    layout/                 # Header, Sidebar (>=lg), NavDrawer (<lg), NavLink, AppNav
+    grid/                   # FastEntryGrid (modo tabla + modo tarjeta), GridRowCard,
+                            #   useGridKeyboardNav, QuantityStepper, VariantSearchCell
+    products/              # ProductFilters (disclosure en <md)
+    deposito/             # StockFilters, StockTable (>=md), StockCardList (<md), AdjustStockDialog
+    forms/                  # ProductForm, VariantRows (fila|tarjeta), CategoryManager, UserManager
 
   lib/
-    format.ts               # money(ARS), integer, date
+    format.ts               # money(ARS), integer, date, slugify
     cn.ts                   # clsx + tailwind-merge
-    constants.ts            # ROLES, TRANSACTION_TYPES, SEED_CATEGORIES
+    useMediaQuery.ts        # hook: matchMedia -> boolean (SSR-safe)
+    constants.ts            # ROLES, TRANSACTION_TYPES, SEED_CATEGORIES, BREAKPOINTS
 
 proxy.ts                    # redirige a /login si no hay cookie de sesión válida
 ```
@@ -182,6 +188,101 @@ proxy.ts                    # redirige a /login si no hay cookie de sesión vál
 | E2E (opcional post-MVP) | login → crear producto → cargar stock → verlo en depósito | Playwright |
 
 Regla TDD: cada action/query y cada componente con lógica se implementa con test primero.
+
+### 3.7 Diseño responsive y multi-dispositivo
+
+El sistema se usa en tres contextos, en orden de importancia:
+
+1. **iPad** (uso principal para la carga de stock) — casi siempre con teclado físico
+   (Magic Keyboard o similar), orientación horizontal predominante pero también vertical.
+2. **Computadora de escritorio / notebook** — administración, consulta, alta de productos.
+3. **Celular** — consulta de depósito y **también carga de stock ocasional**.
+
+No hay diseño "mobile-only" ni "desktop-only": es **una sola UI responsive** que se
+reacomoda. Sin librería nueva; Tailwind v4 + un hook `useMediaQuery` propio.
+
+#### Breakpoints (Tailwind v4, defaults)
+
+| Rango | Dispositivo objetivo | Layout |
+|---|---|---|
+| `< 768px` (base) | Celular (portrait 360–430px) | 1 columna; nav en drawer; tablas como tarjetas apiladas; grilla de carga en modo "tarjeta por fila" |
+| `768–1023px` (`md`) | iPad portrait (768–834pt) | 1–2 columnas; nav en drawer; tablas reales con scroll horizontal contenido; grilla de carga en modo tabla |
+| `≥ 1024px` (`lg`) | iPad landscape (1024–1194pt), notebook | Sidebar fija persistente; tablas completas; grilla de carga en modo tabla |
+| `≥ 1280px` (`xl`) | Escritorio | Igual que `lg` con más aire y anchos máximos |
+
+#### Reglas transversales (aplican a todos los componentes)
+
+- **Targets táctiles ≥ 44×44px** (Apple HIG): botones e inputs con `min-h-11`
+  (44px), links de nav con `py-3`, separación ≥ 8px entre elementos tocables.
+- **Inputs con `font-size ≥ 16px` en móvil** (`text-base`, y `md:text-sm` si se quiere
+  compactar en pantallas grandes) para evitar el auto-zoom de iOS al enfocar.
+- **`inputMode` correcto**: `inputMode="numeric"` en todos los campos de cantidad;
+  `type="email"` en login. Esto controla el teclado en pantalla del iPad/celular.
+- **Sin scroll horizontal de página**: el `body` nunca desborda en X. El contenido
+  ancho (tablas, grilla) scrollea dentro de su propio contenedor `overflow-x-auto`.
+- **Safe areas**: `viewport-fit=cover` + `env(safe-area-inset-*)` en barras fijas
+  (header, barra de acción de la grilla, drawer) para no quedar bajo el notch / la
+  home bar del iPad.
+- **`touch-action: manipulation`** y `-webkit-tap-highlight-color: transparent`
+  globales para eliminar el delay de 300ms y el flash gris al tocar.
+- **Zoom del usuario habilitado** (no se fija `maximum-scale`): accesibilidad.
+- **Estados de foco visibles** (`:focus-visible`) — sirven con teclado (iPad/desktop) y
+  no molestan en touch.
+
+#### Adaptaciones por pantalla
+
+**App shell (`(app)/layout.tsx`)**
+- `≥ lg`: `<Sidebar>` fija a la izquierda + `<Header>` arriba.
+- `< lg`: `<Header>` con botón hamburguesa que abre la navegación en un **drawer
+  lateral** (Radix Dialog como sheet, desde la izquierda, con overlay). El drawer se
+  cierra al navegar. El ítem activo se resalta igual que en la sidebar.
+
+**Tablas de listado (`/deposito`, `/productos`)**
+- `≥ md`: tabla real, envuelta en `overflow-x-auto`.
+- `< md`: **lista de tarjetas** — cada registro es una `<article>` con el nombre del
+  producto/variante destacado y los demás campos como pares etiqueta/valor; la acción
+  (p. ej. "Ajustar") es un botón de ancho completo.
+- Ambas variantes se renderizan siempre en el DOM y se muestran/ocultan por CSS
+  (`hidden md:block` / `md:hidden`); no hay bifurcación por JS ni riesgo de hidratación.
+- **Filtros**: la búsqueda siempre visible; los selects (categoría, estado) se colapsan
+  en un disclosure "Filtros" en `< md` y quedan en línea en `≥ md`. El pie con totales
+  queda fijo abajo de la tarjeta-lista en móvil.
+
+**Grilla de carga inicial (`FastEntryGrid`)** — el componente más sensible:
+- Modo se decide con `useMediaQuery('(min-width: 768px)')`:
+  - **`≥ md` — modo tabla** (iPad landscape/portrait, desktop): la grilla tipo planilla.
+    Navegación por teclado (Enter = nueva fila, Tab, ↑/↓ en cantidad, Esc = borrar
+    fila) como **camino principal**. Además: cada celda con target ≥ 44px,
+    `inputMode="numeric"` en cantidad, botón "＋ Agregar fila" y borrar-fila tocables,
+    y una **barra de acción fija abajo** ("Guardar lote" + resumen) siempre alcanzable
+    con el pulgar en iPad.
+  - **`< md` — modo tarjeta** (celular): cada fila es una tarjeta con el buscador de
+    producto/variante arriba (ancho completo), y abajo un campo de cantidad grande con
+    botones **−／＋** a los lados (stepper) además del input numérico. Botón "Agregar
+    ítem" al final. "Guardar lote" en barra fija inferior. Las flechas/Enter de teclado
+    siguen funcionando si hay teclado, pero nada depende de ellas.
+- El teclado físico se detecta implícitamente: los handlers de teclado están siempre
+  activos; en táctil puro simplemente no se disparan y la UI es 100% operable con dedos.
+
+**Formularios (`ProductForm`, `VariantRows`, `CategoryManager`, `UserManager`)**
+- 1 columna en `< md`; grilla de 2 columnas en `≥ md` donde tenga sentido (p. ej.
+  costo/precio lado a lado).
+- `VariantRows`: en `< md` cada variante es una tarjeta con campos apilados; en `≥ md`
+  es una fila de inputs. Botón "Agregar variante" de ancho completo en móvil.
+
+**Diálogos (`Dialog`)**
+- `< sm`: hoja inferior (bottom sheet) de ancho completo que sube desde abajo, con
+  `env(safe-area-inset-bottom)`.
+- `≥ sm`: modal centrado con `max-w`.
+
+#### Impacto en testing
+
+- `useMediaQuery`: test unitario mockeando `window.matchMedia`.
+- `FastEntryGrid`: los tests fuerzan el modo con una prop `mode?: 'table' | 'card'`
+  (default: derivado de `useMediaQuery`) para poder probar ambos sin `matchMedia`.
+- Tablas responsive: el test verifica que **tanto** la tabla como la lista de tarjetas
+  están en el DOM (la visibilidad es CSS y no se prueba en jsdom).
+- Navegación por teclado: se sigue probando en el modo tabla.
 
 ---
 
@@ -444,7 +545,9 @@ deadline, **P1** = deseable, **P2** = si sobra tiempo.
 - **Dado** que agrego una variante que ya está en otra fila de la planilla **entonces**
   veo un aviso "Ya está en la fila N" y no se duplica.
 
-#### D2 (P0) — Navegación por teclado
+#### D2 (P0) — Navegación por teclado (iPad con teclado / desktop)
+Aplica en el **modo tabla** (`≥ md`). Es el camino principal de carga en iPad con Magic
+Keyboard y en computadora.
 - **Dado** el foco en "Cantidad" de una fila **cuando** presiono `Enter` **entonces** se
   crea/enfoca la fila siguiente (buscador).
 - **Cuando** presiono `Tab` / `Shift+Tab` **entonces** el foco avanza/retrocede entre
@@ -452,6 +555,8 @@ deadline, **P1** = deseable, **P2** = si sobra tiempo.
 - **Cuando** presiono `↑` / `↓` en la columna Cantidad **entonces** el foco salta a la
   misma columna de la fila anterior/siguiente.
 - **Cuando** presiono `Esc` en una fila sin guardar **entonces** la fila se elimina.
+- **Dado** que no hay teclado físico **entonces** la grilla sigue siendo 100% operable
+  solo con toques (ver D7); ningún flujo depende de estas teclas.
 
 #### D3 (P0) — Validación por fila
 - **Dado** una fila sin variante seleccionada **cuando** intento guardar el lote
@@ -483,6 +588,21 @@ deadline, **P1** = deseable, **P2** = si sobra tiempo.
 - **Dado** que copio una columna de cantidades desde Excel **cuando** pego sobre la
   columna Cantidad **entonces** se completan las filas correspondientes en orden.
 
+#### D7 (P0) — Carga táctil (celular / iPad sin teclado)
+- **Dado** un ancho `< md` **cuando** entro a `/carga-inicial` **entonces** cada ítem se
+  muestra como una **tarjeta**: buscador de producto/variante arriba y, abajo, un campo
+  de cantidad grande con botones **−／＋** a los lados.
+- **Dado** que toco `＋` o `−` **entonces** la cantidad sube/baja de a 1 (mínimo 0), sin
+  necesidad de abrir el teclado.
+- **Dado** que toco el campo de cantidad **entonces** el iPad/celular abre el **teclado
+  numérico** (`inputMode="numeric"`).
+- **Dado** que toco "Agregar ítem" **entonces** aparece una tarjeta nueva vacía y el foco
+  va a su buscador.
+- **Dado** cualquier ancho **entonces** el botón "Guardar lote" y el resumen "N
+  guardadas, M con error" están en una **barra fija inferior** siempre visible (respeta
+  el área segura del dispositivo).
+- **Dado** que todos los targets tocables miden ≥ 44×44px.
+
 ### Épica E — Vista de depósito
 
 #### E1 (P0) — Consultar stock
@@ -490,12 +610,15 @@ deadline, **P1** = deseable, **P2** = si sobra tiempo.
 > **Quiero** ver todo el stock disponible en tiempo real
 > **Para** saber qué hay y cuánto vale.
 
-- **Dado** que entro a `/deposito` **entonces** veo una tabla con columnas: Producto,
-  Variante, Categoría, Stock actual, Costo unitario (efectivo), Precio venta (efectivo).
+- **Dado** un ancho `≥ md` **entonces** veo una tabla con columnas: Producto, Variante,
+  Categoría, Stock actual, Costo unitario (efectivo), Precio venta (efectivo).
+- **Dado** un ancho `< md` (celular) **entonces** veo la misma información como **lista de
+  tarjetas**: nombre de producto y variante destacados, y Categoría / Stock / Costo /
+  Precio como pares etiqueta-valor; la acción "Ajustar" es un botón de ancho completo.
 - **Dado** que una variante no tiene `InventoryStock` **entonces** su Stock actual se
   muestra como `0`.
-- **Dado** el pie de la tabla **entonces** veo el total de variantes listadas y la suma
-  de unidades en stock.
+- **Dado** el pie de la lista **entonces** veo el total de variantes listadas y la suma
+  de unidades en stock (fijo abajo en móvil).
 
 #### E2 (P0) — Filtrar y buscar
 - **Dado** que selecciono una categoría **entonces** la tabla filtra por esa categoría
@@ -506,6 +629,8 @@ deadline, **P1** = deseable, **P2** = si sobra tiempo.
   variante (case-insensitive).
 - **Dado** filtros activos **cuando** recargo la página **entonces** los filtros
   persisten (están en la URL).
+- **Dado** un ancho `< md` **entonces** la búsqueda queda siempre visible y los selects
+  (categoría, estado) se agrupan en un disclosure "Filtros" colapsable.
 
 #### E3 (P1) — Ordenar
 - **Dado** que hago clic en un encabezado (Producto, Stock, Precio) **entonces** la tabla
@@ -523,6 +648,36 @@ deadline, **P1** = deseable, **P2** = si sobra tiempo.
   `AJUSTE` con el delta y el stock se actualiza.
 - **Dado** una nueva cantidad negativa **entonces** la acción se rechaza.
 - **Dado** motivo vacío **entonces** la acción se rechaza con "El motivo es obligatorio".
+- **Dado** un ancho `< sm` **entonces** "Ajustar" abre una hoja inferior (bottom sheet)
+  a ancho completo en vez de un modal centrado.
+
+### Épica G — Uso multi-dispositivo (iPad / celular / computadora)
+
+#### G1 (P0) — Navegación adaptable
+- **Dado** un ancho `≥ lg` (iPad landscape, notebook) **entonces** la navegación es una
+  **sidebar fija** siempre visible.
+- **Dado** un ancho `< lg` (iPad portrait, celular) **entonces** la navegación se abre
+  desde un botón hamburguesa como **drawer lateral** con overlay, y se cierra al elegir
+  una opción.
+- **Dado** cualquier ancho **entonces** el ítem de la sección actual se muestra resaltado.
+
+#### G2 (P0) — Ergonomía táctil
+- **Dado** cualquier pantalla **entonces** todos los botones, inputs y links tienen un
+  área tocable de **≥ 44×44px** y separación suficiente para no tocar el equivocado.
+- **Dado** que enfoco un input en iPad/celular **entonces** la página **no hace zoom
+  automático** (tamaño de fuente ≥ 16px en móvil).
+- **Dado** un campo de cantidad o de precio **entonces** el dispositivo abre el **teclado
+  numérico**.
+- **Dado** una barra fija (header, acción de la grilla, drawer) **entonces** respeta el
+  **área segura** del dispositivo (no queda tapada por notch / home bar).
+
+#### G3 (P0) — Sin scroll horizontal de página
+- **Dado** cualquier pantalla **entonces** el contenido nunca genera scroll horizontal a
+  nivel de página; las tablas anchas scrollean dentro de su propio contenedor.
+
+#### G4 (P0) — Continuidad entre dispositivos
+- **Dado** que empiezo una tarea en iPad y la sigo en la computadora (o viceversa)
+  **entonces** la funcionalidad es la misma; solo cambia la disposición.
 
 ---
 
@@ -551,6 +706,8 @@ deadline, **P1** = deseable, **P2** = si sobra tiempo.
 | Next.js 16 muy nuevo (APIs cambiadas) | Medio | Consultar `node_modules/next/dist/docs/` antes de cada feature; `proxy.ts` en vez de `middleware`; Request APIs `async`. |
 | `next-auth` beta inestable | Medio | Se evita: sesión propia con `jose` + `bcryptjs`. |
 | Grilla fast-entry: UX de teclado compleja | Medio | Componente aislado `FastEntryGrid` con tests de teclado; `@tanstack/react-table` headless. |
+| Grilla en dos modos (tabla/tarjeta) duplica superficie de UI y de bugs | Medio | Lógica compartida (`validateRow`, estado de filas, `saveInitialStockBatch`); solo cambia el render. Prop `mode` para testear ambos. iPad (uso principal) usa el modo tabla ya cubierto. |
+| Auto-zoom de iOS al enfocar inputs / targets chicos en táctil | Medio | Regla global: inputs ≥ 16px en móvil, targets ≥ 44px, `inputMode` correcto. Verificación manual en iPad real antes del deploy. |
 | Desfasaje `InventoryStock` vs ledger | Bajo | Escrituras siempre en `$transaction`; script `reconcile.ts`. |
 
 ---
@@ -568,8 +725,10 @@ deadline, **P1** = deseable, **P2** = si sobra tiempo.
 | Semántica `CARGA_INICIAL` | **Ajuste absoluto** (la cantidad cargada es el stock resultante; se registra el delta) |
 | Import CSV/Excel | **Fuera de Etapa 1** (solo grilla interactiva) |
 | UI | Primitivas propias (patrón shadcn/ui) sobre Radix + `lucide-react`, Tailwind v4 |
-| Grilla | `@tanstack/react-table` v8 headless + navegación por teclado propia |
-| Tests | Vitest + Testing Library; integración de actions/queries contra Postgres de test |
+| Grilla | `@tanstack/react-table` v8 headless + navegación por teclado propia + modo tarjeta táctil |
+| Responsive | **Una sola UI responsive** (sin app separada). Dispositivos: iPad (principal, casi siempre con teclado), computadora, celular (también carga). Breakpoints Tailwind default; corte de layout en `lg` (sidebar) y `md` (tabla↔tarjeta). Ver §3.7. |
+| Conectividad | **Wifi estable en el local** → sin offline ni cola local; cada lote se guarda contra el servidor. |
+| Tests | Vitest + Testing Library; integración de actions/queries contra Postgres de test; `useMediaQuery` con `matchMedia` mockeado |
 
 ---
 

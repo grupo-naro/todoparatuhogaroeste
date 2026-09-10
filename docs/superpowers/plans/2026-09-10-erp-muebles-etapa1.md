@@ -22,6 +22,15 @@
 - **`CARGA_INICIAL` es ajuste absoluto:** la cantidad recibida ES el stock resultante; se registra `quantityDelta = contado - actual` y `quantityAfter = contado`.
 - **Alias de imports:** `@/*` → `src/*`.
 - **Idioma:** UI, rutas, mensajes de error y copy en español. Código (identificadores) en inglés.
+- **Responsive / dispositivos (spec §3.7).** Una sola UI responsive para **iPad** (uso principal, casi siempre con teclado físico), **computadora** y **celular** (también carga stock). Reglas que aplican a TODA UI que se cree o modifique:
+  - Breakpoints Tailwind default. Cortes de layout: **`lg` (1024px)** sidebar fija ↔ drawer; **`md` (768px)** tabla ↔ tarjetas / grilla modo tabla ↔ modo tarjeta.
+  - **Targets tocables ≥ 44×44px**: botones e inputs `min-h-11`, nav links `py-3`, ≥ 8px de separación entre elementos tocables.
+  - **Inputs `text-base` (16px) en móvil** (`md:text-sm` si se quiere compactar) para evitar el auto-zoom de iOS.
+  - **`inputMode="numeric"`** en todo campo de cantidad o monto.
+  - **Sin scroll horizontal de página**: contenido ancho dentro de `overflow-x-auto` propio.
+  - Barras fijas respetan `env(safe-area-inset-*)` (viewport ya con `viewport-fit=cover`).
+  - `Dialog` = bottom-sheet a ancho completo en `< sm`; modal centrado en `≥ sm`.
+  - El modo de los componentes que cambian de estructura (grilla, tablas) se decide con `useMediaQuery` (Task 1); esos componentes exponen una prop `mode` para poder testear ambos.
 - **Commits:** frecuentes, uno por tarea como mínimo. Formato Conventional Commits. Terminar el mensaje con `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`.
 - **Prioridades:** las tareas están ordenadas. **P0** = Tasks 1–23 y 25 (deploy): forman el vertical funcional que se despliega para el deadline. **P1** = Task 24 (ABM de usuarios) y el ordenamiento de columnas dentro de la Task 23. **P2** = Task 26 (pegar cantidades desde Excel). P1/P2 no bloquean el deploy.
 
@@ -37,6 +46,8 @@
 - Create: `src/lib/cn.ts`, `src/lib/format.ts`, `src/lib/constants.ts`
 - Test: `src/lib/format.test.ts`
 - Modify: `src/app/globals.css`, `src/app/layout.tsx`
+- Create: `src/lib/useMediaQuery.ts`
+- Test: `src/lib/useMediaQuery.test.tsx`
 
 **Interfaces:**
 - Produces:
@@ -44,7 +55,9 @@
   - `money(value: number | string | null | undefined): string` — ARS; `null`/`undefined`/`''` → `"—"`
   - `integer(value: number | null | undefined): string` — miles es-AR; `null` → `"0"`
   - `formatDate(value: Date | string): string` — `dd/MM/yyyy HH:mm`
-  - `ROLES`, `RoleName`, `TRANSACTION_TYPES`, `TransactionTypeName`, `SEED_CATEGORIES`
+  - `ROLES`, `RoleName`, `TRANSACTION_TYPES`, `TransactionTypeName`, `SEED_CATEGORIES`, `BREAKPOINTS`
+  - `useMediaQuery(query: string): boolean` — SSR-safe (`false` en el primer render del servidor); se re-evalúa en cliente vía `matchMedia`
+  - `useIsDesktop(): boolean` = `useMediaQuery('(min-width: 1024px)')`; `useIsWide(): boolean` = `useMediaQuery('(min-width: 768px)')`
 
 - [ ] **Step 1: Instalar dependencias**
 
@@ -177,9 +190,70 @@ export type TransactionTypeName = (typeof TRANSACTION_TYPES)[number]
 export const SEED_CATEGORIES = [
   'Somieres', 'Respaldos', 'Sillones', 'Mesas', 'Sillas', 'Muebles a medida / Otros',
 ] as const
+
+export const BREAKPOINTS = { md: '(min-width: 768px)', lg: '(min-width: 1024px)' } as const
 ```
 
-- [ ] **Step 10: Tokens de color en `src/app/globals.css`** (mantener `@import "tailwindcss";`)
+- [ ] **Step 10: Test que falla — `src/lib/useMediaQuery.test.tsx`**
+
+```tsx
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { renderHook } from '@testing-library/react'
+import { useMediaQuery } from './useMediaQuery'
+
+function mockMatchMedia(matches: boolean) {
+  vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({
+    matches, media: '', onchange: null,
+    addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
+  }))
+}
+
+beforeEach(() => vi.unstubAllGlobals())
+
+describe('useMediaQuery', () => {
+  it('devuelve true cuando la media query matchea', () => {
+    mockMatchMedia(true)
+    const { result } = renderHook(() => useMediaQuery('(min-width: 768px)'))
+    expect(result.current).toBe(true)
+  })
+  it('devuelve false cuando no matchea', () => {
+    mockMatchMedia(false)
+    const { result } = renderHook(() => useMediaQuery('(min-width: 768px)'))
+    expect(result.current).toBe(false)
+  })
+})
+```
+
+- [ ] **Step 11: Ejecutar — debe fallar.** Run: `pnpm test src/lib/useMediaQuery.test.tsx` → FAIL.
+
+- [ ] **Step 12: Implementar `src/lib/useMediaQuery.ts`**
+
+```ts
+'use client'
+import { useEffect, useState } from 'react'
+
+export function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false) // SSR-safe: false en el primer render
+
+  useEffect(() => {
+    const mql = window.matchMedia(query)
+    const update = () => setMatches(mql.matches)
+    update()
+    mql.addEventListener('change', update)
+    return () => mql.removeEventListener('change', update)
+  }, [query])
+
+  return matches
+}
+
+export const useIsWide = () => useMediaQuery('(min-width: 768px)')      // ≥ md
+export const useIsDesktop = () => useMediaQuery('(min-width: 1024px)')  // ≥ lg
+```
+
+- [ ] **Step 13: Ejecutar — debe pasar.** Run: `pnpm test src/lib/useMediaQuery.test.tsx` → PASS.
+
+- [ ] **Step 14: Tokens de color en `src/app/globals.css`** (mantener `@import "tailwindcss";`)
 
 ```css
 @import "tailwindcss";
@@ -198,27 +272,41 @@ export const SEED_CATEGORIES = [
   --font-sans: var(--font-geist-sans);
 }
 
-body { background: var(--color-background); color: var(--color-foreground); }
+* { -webkit-tap-highlight-color: transparent; }
+html { touch-action: manipulation; }
+body {
+  background: var(--color-background); color: var(--color-foreground);
+  overflow-x: hidden;                     /* nunca scroll horizontal de página */
+}
+input, select, textarea, button { font-size: 16px; }   /* evita auto-zoom iOS; se compacta con md:text-sm */
 ```
 
-- [ ] **Step 11: `src/app/layout.tsx`** — `lang="es"` y metadata
+- [ ] **Step 15: `src/app/layout.tsx`** — `lang="es"`, metadata y viewport
 
 ```tsx
+import type { Metadata, Viewport } from 'next'
+
 export const metadata: Metadata = {
   title: 'Gestión — Depósito',
   description: 'Sistema de gestión de inventario',
 }
-// <html lang="es" ...>
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',   // habilita env(safe-area-inset-*); NO se fija maximumScale (accesibilidad)
+}
+// <html lang="es" ...>  — mantener className con las fuentes y `h-full antialiased`
 ```
 
-- [ ] **Step 12: Verificar**
+- [ ] **Step 16: Verificar**
 
 Run: `pnpm test && pnpm build` → tests PASS, build OK.
 
-- [ ] **Step 13: Commit**
+- [ ] **Step 17: Commit**
 
 ```bash
-git add -A && git commit -m "chore: setup tooling, deps y utilidades base (format, cn, constants)"
+git add -A && git commit -m "chore: setup tooling, deps y utilidades base (format, cn, useMediaQuery, viewport táctil)"
 ```
 
 ---
@@ -803,22 +891,28 @@ git add -A && git commit -m "feat: login (signIn/signOut) + página de ingreso +
 
 ---
 
-### Task 7: App shell — layout protegido, sidebar y redirección raíz
+### Task 7: App shell — layout protegido, navegación responsive y redirección raíz
 
 **Files:**
 - Create: `src/app/(app)/layout.tsx`
 - Create: `src/app/(app)/page.tsx`
-- Create: `src/components/layout/Sidebar.tsx`
-- Create: `src/components/layout/Header.tsx`
+- Create: `src/components/layout/navItems.ts`
 - Create: `src/components/layout/NavLink.tsx`
+- Create: `src/components/layout/Sidebar.tsx`
+- Create: `src/components/layout/NavDrawer.tsx` (Client)
+- Create: `src/components/layout/Header.tsx`
 - Test: `src/components/layout/NavLink.test.tsx`
+- Test: `src/components/layout/NavDrawer.test.tsx`
 
 **Interfaces:**
 - Consumes: `requireUser` (Task 5), `signOut` (Task 6)
 - Produces:
-  - `<Sidebar role={RoleName} />` — nav: Depósito, Carga inicial, Productos, Categorías, (Usuarios solo `ADMIN`)
-  - `<Header userName={string} />` — nombre + botón "Salir" (`<form action={signOut}>`)
-  - `<NavLink href={string} label={string} icon={LucideIcon} />` — marca activo con `usePathname()`
+  - `type NavItem = { href: string; label: string; icon: LucideIcon; adminOnly?: boolean }`
+  - `navItemsFor(role: RoleName): NavItem[]` — Depósito, Carga inicial, Productos, Categorías, (Usuarios solo `ADMIN`)
+  - `<NavLink item={NavItem} onNavigate?={() => void} />` — marca activo con `usePathname()`; `py-3` (target táctil); llama `onNavigate` al hacer click (para cerrar el drawer)
+  - `<Sidebar role={RoleName} />` — `<nav>` fijo, visible solo `≥ lg` (`hidden lg:flex`)
+  - `<NavDrawer role={RoleName} />` (Client) — botón hamburguesa (visible solo `< lg`, `lg:hidden`) que abre un `Dialog` como sheet lateral izquierdo; se cierra al navegar
+  - `<Header userName={string} role={RoleName} />` — hamburguesa (`<NavDrawer>`) + título + nombre + "Salir"
 
 - [ ] **Step 1: Test que falla — `src/components/layout/NavLink.test.tsx`**
 
@@ -830,14 +924,22 @@ import { Home } from 'lucide-react'
 vi.mock('next/navigation', () => ({ usePathname: () => '/deposito' }))
 import { NavLink } from './NavLink'
 
+const item = (href: string, label: string) => ({ href, label, icon: Home })
+
 describe('NavLink', () => {
   it('marca aria-current cuando la ruta coincide', () => {
-    render(<NavLink href="/deposito" label="Depósito" icon={Home} />)
+    render(<NavLink item={item('/deposito', 'Depósito')} />)
     expect(screen.getByRole('link', { name: 'Depósito' })).toHaveAttribute('aria-current', 'page')
   })
   it('no marca aria-current en otra ruta', () => {
-    render(<NavLink href="/productos" label="Productos" icon={Home} />)
+    render(<NavLink item={item('/productos', 'Productos')} />)
     expect(screen.getByRole('link', { name: 'Productos' })).not.toHaveAttribute('aria-current')
+  })
+  it('llama onNavigate al hacer click', async () => {
+    const onNavigate = vi.fn()
+    render(<NavLink item={item('/productos', 'Productos')} onNavigate={onNavigate} />)
+    screen.getByRole('link', { name: 'Productos' }).click()
+    expect(onNavigate).toHaveBeenCalled()
   })
 })
 ```
@@ -846,71 +948,166 @@ describe('NavLink', () => {
 
 Run: `pnpm test src/components/layout/NavLink.test.tsx` → FAIL.
 
-- [ ] **Step 3: Implementar `src/components/layout/NavLink.tsx`**
+- [ ] **Step 3: `src/components/layout/navItems.ts`**
+
+```ts
+import { Boxes, ClipboardList, Package, Tags, Users, type LucideIcon } from 'lucide-react'
+import type { RoleName } from '@/lib/constants'
+
+export type NavItem = { href: string; label: string; icon: LucideIcon; adminOnly?: boolean }
+
+const ALL: NavItem[] = [
+  { href: '/deposito', label: 'Depósito', icon: Boxes },
+  { href: '/carga-inicial', label: 'Carga inicial', icon: ClipboardList },
+  { href: '/productos', label: 'Productos', icon: Package },
+  { href: '/categorias', label: 'Categorías', icon: Tags },
+  { href: '/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
+]
+
+export function navItemsFor(role: RoleName): NavItem[] {
+  return ALL.filter((i) => !i.adminOnly || role === 'ADMIN')
+}
+```
+
+- [ ] **Step 4: Implementar `src/components/layout/NavLink.tsx`**
 
 ```tsx
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import type { NavItem } from './navItems'
 
-export function NavLink({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
+export function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const pathname = usePathname()
+  const { href, label, icon: Icon } = item
   const active = pathname === href || pathname.startsWith(href + '/')
   return (
-    <Link href={href} aria-current={active ? 'page' : undefined}
-      className={cn('flex items-center gap-2 rounded px-3 py-2 text-sm',
+    <Link href={href} aria-current={active ? 'page' : undefined} onClick={onNavigate}
+      className={cn('flex items-center gap-3 rounded px-3 py-3 text-sm min-h-11',
         active ? 'bg-primary text-primary-foreground' : 'hover:bg-border/50')}>
-      <Icon size={16} /> {label}
+      <Icon size={18} /> {label}
     </Link>
   )
 }
 ```
 
-- [ ] **Step 4: Ejecutar — debe pasar**
+- [ ] **Step 5: Ejecutar — debe pasar**
 
 Run: `pnpm test src/components/layout/NavLink.test.tsx` → PASS.
 
-- [ ] **Step 5: `src/components/layout/Sidebar.tsx`**
+- [ ] **Step 6: `src/components/layout/Sidebar.tsx`** (solo `≥ lg`)
 
 ```tsx
-import { Boxes, ClipboardList, Package, Tags, Users } from 'lucide-react'
 import type { RoleName } from '@/lib/constants'
+import { navItemsFor } from './navItems'
 import { NavLink } from './NavLink'
 
 export function Sidebar({ role }: { role: RoleName }) {
   return (
-    <nav className="w-56 shrink-0 border-r border-border p-3 space-y-1">
-      <NavLink href="/deposito" label="Depósito" icon={Boxes} />
-      <NavLink href="/carga-inicial" label="Carga inicial" icon={ClipboardList} />
-      <NavLink href="/productos" label="Productos" icon={Package} />
-      <NavLink href="/categorias" label="Categorías" icon={Tags} />
-      {role === 'ADMIN' && <NavLink href="/usuarios" label="Usuarios" icon={Users} />}
+    <nav className="hidden lg:flex flex-col w-56 shrink-0 border-r border-border p-3 gap-1">
+      {navItemsFor(role).map((item) => <NavLink key={item.href} item={item} />)}
     </nav>
   )
 }
 ```
 
-- [ ] **Step 6: `src/components/layout/Header.tsx`**
+- [ ] **Step 7: Test que falla — `src/components/layout/NavDrawer.test.tsx`**
+
+```tsx
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+
+vi.mock('next/navigation', () => ({ usePathname: () => '/deposito' }))
+import { NavDrawer } from './NavDrawer'
+
+describe('NavDrawer', () => {
+  it('abre con el botón y muestra los ítems; DEPOSITO no ve Usuarios', async () => {
+    render(<NavDrawer role="DEPOSITO" />)
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir menú' }))
+    expect(screen.getByRole('link', { name: 'Depósito' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument()
+  })
+  it('ADMIN ve Usuarios y al navegar se cierra el drawer', async () => {
+    render(<NavDrawer role="ADMIN" />)
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir menú' }))
+    const usuarios = screen.getByRole('link', { name: 'Usuarios' })
+    expect(usuarios).toBeInTheDocument()
+    await userEvent.click(usuarios)
+    expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument()
+  })
+})
+```
+
+- [ ] **Step 8: Ejecutar — debe fallar.** Run: `pnpm test src/components/layout/NavDrawer.test.tsx` → FAIL.
+
+- [ ] **Step 9: Implementar `src/components/layout/NavDrawer.tsx`**
+
+```tsx
+'use client'
+import { useState } from 'react'
+import * as Dialog from '@radix-ui/react-dialog'
+import { Menu, X } from 'lucide-react'
+import type { RoleName } from '@/lib/constants'
+import { navItemsFor } from './navItems'
+import { NavLink } from './NavLink'
+
+export function NavDrawer({ role }: { role: RoleName }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Trigger aria-label="Abrir menú" className="lg:hidden p-2 -ml-2 min-h-11 min-w-11">
+        <Menu size={22} />
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/40 lg:hidden" />
+        <Dialog.Content
+          className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-card border-r border-border p-3
+                     flex flex-col gap-1 lg:hidden"
+          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="flex items-center justify-between px-1 pb-2">
+            <Dialog.Title className="font-semibold">Menú</Dialog.Title>
+            <Dialog.Close aria-label="Cerrar menú" className="p-2 min-h-11 min-w-11"><X size={20} /></Dialog.Close>
+          </div>
+          {navItemsFor(role).map((item) => (
+            <NavLink key={item.href} item={item} onNavigate={() => setOpen(false)} />
+          ))}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}
+```
+
+- [ ] **Step 10: Ejecutar — debe pasar.** Run: `pnpm test src/components/layout/NavDrawer.test.tsx` → PASS.
+
+- [ ] **Step 11: `src/components/layout/Header.tsx`**
 
 ```tsx
 import { signOut } from '@/server/actions/auth'
+import type { RoleName } from '@/lib/constants'
+import { NavDrawer } from './NavDrawer'
 
-export function Header({ userName }: { userName: string }) {
+export function Header({ userName, role }: { userName: string; role: RoleName }) {
   return (
-    <header className="h-14 border-b border-border flex items-center justify-between px-4">
+    <header
+      className="h-14 border-b border-border flex items-center gap-3 px-4 sticky top-0 bg-background z-20"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <NavDrawer role={role} />
       <span className="font-semibold">Gestión</span>
-      <div className="flex items-center gap-3 text-sm">
-        <span className="text-muted">{userName}</span>
-        <form action={signOut}><button className="underline">Salir</button></form>
+      <div className="ml-auto flex items-center gap-3 text-sm">
+        <span className="text-muted hidden sm:inline">{userName}</span>
+        <form action={signOut}>
+          <button className="underline min-h-11 px-2">Salir</button>
+        </form>
       </div>
     </header>
   )
 }
 ```
 
-- [ ] **Step 7: `src/app/(app)/layout.tsx`**
+- [ ] **Step 12: `src/app/(app)/layout.tsx`**
 
 ```tsx
 import { requireUser } from '@/server/auth/guards'
@@ -921,35 +1118,42 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
   const session = await requireUser()
   return (
     <div className="min-h-full flex flex-col">
-      <Header userName={session.name} />
+      <Header userName={session.name} role={session.role} />
       <div className="flex flex-1">
         <Sidebar role={session.role} />
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 min-w-0">{children}</main>
       </div>
     </div>
   )
 }
 ```
 
-- [ ] **Step 8: `src/app/(app)/page.tsx`** — redirección raíz
+> `min-w-0` en `<main>` evita que una tabla ancha empuje el layout y genere scroll horizontal de página.
+> `<ToastProvider>` se agrega envolviendo `{children}` en la **Task 8, Step 9**, cuando el componente ya existe.
+
+- [ ] **Step 13: `src/app/(app)/page.tsx`** — redirección raíz
 
 ```tsx
 import { redirect } from 'next/navigation'
 export default function IndexPage() { redirect('/deposito') }
 ```
 
-- [ ] **Step 9: Eliminar la home de Create Next App**
+- [ ] **Step 14: Eliminar la home de Create Next App**
 
 Borrar `src/app/page.tsx` (la ruta `/` ahora la cubre `(app)/page.tsx`).
 
-- [ ] **Step 10: Verificar**
+- [ ] **Step 15: Verificar (incluye responsive)**
 
-Run: `pnpm test && pnpm build && pnpm dev` — con sesión, `/` redirige a `/deposito`; el sidebar muestra "Usuarios" solo si el usuario es ADMIN; "Salir" borra la sesión.
+Run: `pnpm test && pnpm build && pnpm dev`.
+- Con sesión, `/` redirige a `/deposito`; "Salir" borra la sesión.
+- En viewport ancho (`≥ 1024px`): sidebar fija visible, sin hamburguesa.
+- En viewport angosto (DevTools iPhone/iPad): aparece la hamburguesa, la sidebar se oculta; el drawer abre, lista los ítems (Usuarios solo ADMIN) y se cierra al navegar.
+- El header queda fijo arriba al scrollear.
 
-- [ ] **Step 11: Commit**
+- [ ] **Step 16: Commit**
 
 ```bash
-git add -A && git commit -m "feat: app shell (layout protegido, sidebar, header, redirección raíz)"
+git add -A && git commit -m "feat: app shell responsive (sidebar >=lg, drawer <lg, header fijo, redirección raíz)"
 ```
 
 ---
@@ -963,14 +1167,14 @@ git add -A && git commit -m "feat: app shell (layout protegido, sidebar, header,
 - Test: `src/components/ui/button.test.tsx`
 
 **Interfaces:**
-- Produces (todas aceptan `className` y hacen merge con `cn`):
-  - `<Button variant?: 'primary' | 'ghost' | 'danger'; size?: 'sm' | 'md' />` (extiende `button` props)
-  - `<Input />` (extiende `input` props)
-  - `<Select />` wrapper de `@radix-ui/react-select` con API `{ value, onValueChange, options: {value,label}[], placeholder? }`
-  - `<Dialog open onOpenChange title children />` wrapper de `@radix-ui/react-dialog`
+- Produces (todas aceptan `className` y hacen merge con `cn`; **targets tocables ≥ 44px** salvo `size="sm"`):
+  - `<Button variant?: 'primary' | 'ghost' | 'danger'; size?: 'sm' | 'md' />` (extiende `button` props) — `md` = `min-h-11`
+  - `<Input />` (extiende `input` props) — `min-h-11`, `text-base md:text-sm` (evita auto-zoom iOS)
+  - `<Select />` wrapper de `@radix-ui/react-select` con API `{ value, onValueChange, options: {value,label}[], placeholder? }` — trigger `min-h-11`
+  - `<Dialog open onOpenChange title children />` wrapper de `@radix-ui/react-dialog` — **bottom-sheet a ancho completo en `< sm`**, modal centrado en `≥ sm`; respeta `env(safe-area-inset-bottom)`
   - `<Badge tone?: 'neutral' | 'success' | 'danger' />`
-  - `<Table>`, `<Thead>`, `<Tbody>`, `<Tr>`, `<Th sortable? sorted?: 'asc'|'desc'|false onSort? >`, `<Td>`
-  - `<ToastProvider>` + `useToast(): { toast: (msg: string, tone?: 'success'|'danger') => void }`
+  - `<Table>`, `<Thead>`, `<Tbody>`, `<Tr>`, `<Th sortable? sorted?: 'asc'|'desc'|false onSort? >`, `<Td>` — `<Table>` se auto-envuelve en un `div.overflow-x-auto`; celdas con `py-3` (target táctil)
+  - `<ToastProvider>` + `useToast(): { toast: (msg: string, tone?: 'success'|'danger') => void }` — viewport anclado abajo, respeta safe-area
 
 - [ ] **Step 1: Test que falla — `src/components/ui/button.test.tsx`**
 
@@ -1014,12 +1218,12 @@ const variants = {
   ghost: 'hover:bg-border/50',
   danger: 'bg-danger text-white hover:opacity-90',
 }
-const sizes = { sm: 'px-2 py-1 text-xs', md: 'px-3 py-2 text-sm' }
+const sizes = { sm: 'px-2 py-1 text-xs', md: 'px-3 min-h-11 text-sm' }
 
 export const Button = forwardRef<HTMLButtonElement, Props>(
   ({ className, variant = 'primary', size = 'md', ...props }, ref) => (
     <button ref={ref}
-      className={cn('rounded font-medium disabled:opacity-60 disabled:pointer-events-none',
+      className={cn('inline-flex items-center justify-center rounded font-medium disabled:opacity-60 disabled:pointer-events-none',
         variants[variant], sizes[size], className)}
       {...props} />
   ),
@@ -1029,22 +1233,82 @@ Button.displayName = 'Button'
 
 - [ ] **Step 4: Ejecutar — debe pasar.** Run: `pnpm test src/components/ui/button.test.tsx` → PASS.
 
-- [ ] **Step 5: Implementar el resto de primitivas** (sin tests dedicados salvo que tengan lógica; son presentacionales). Guías:
-  - `input.tsx`: `forwardRef` sobre `<input>`, clase base `border border-border rounded px-3 py-2 text-sm w-full`.
+- [ ] **Step 5: Test que falla — `src/components/ui/dialog.test.tsx`** (el `Dialog` tiene lógica de layout responsive que conviene fijar)
+
+```tsx
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { Dialog } from './dialog'
+
+describe('Dialog', () => {
+  it('renderiza título y contenido cuando open', () => {
+    render(<Dialog open onOpenChange={vi.fn()} title="Ajustar stock"><p>cuerpo</p></Dialog>)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('Ajustar stock')).toBeInTheDocument()
+    expect(screen.getByText('cuerpo')).toBeInTheDocument()
+  })
+  it('el contenido lleva las clases de bottom-sheet en móvil y centrado en sm', () => {
+    render(<Dialog open onOpenChange={vi.fn()} title="X"><p>y</p></Dialog>)
+    const content = screen.getByRole('dialog')
+    expect(content.className).toMatch(/bottom-0/)      // sheet en móvil
+    expect(content.className).toMatch(/sm:/)           // se re-centra en ≥ sm
+  })
+})
+```
+
+- [ ] **Step 6: Ejecutar — debe fallar.** Run: `pnpm test src/components/ui/dialog.test.tsx` → FAIL.
+
+- [ ] **Step 7: Implementar el resto de primitivas.**
+  - `input.tsx`: `forwardRef` sobre `<input>`, clase base `w-full border border-border rounded px-3 min-h-11 text-base md:text-sm`.
   - `badge.tsx`: `<span>` con clases según `tone` (`neutral`→gris, `success`→verde, `danger`→rojo).
-  - `table.tsx`: wrappers finos sobre `<table>/<thead>/...`; `Th` con `sortable` renderiza un `<button>` con `aria-sort` y `onSort`.
-  - `select.tsx`: `Select.Root/Trigger/Value/Portal/Content/Viewport/Item` de Radix, envueltos en un componente controlado con la API indicada arriba.
-  - `dialog.tsx`: `Dialog.Root/Portal/Overlay/Content/Title/Close` de Radix; `Content` centrado con overlay semitransparente.
-  - `toast.tsx`: `ToastProvider` monta `Toast.Provider/Viewport` de Radix; `useToast` expone `toast(msg, tone)` que agrega a un estado local de toasts.
+  - `table.tsx`: `Table` envuelve `<table>` en `<div className="overflow-x-auto">` y le pone `className="w-full text-sm min-w-[40rem]"` (fuerza el scroll interno en vez de romper el layout); `Th`/`Td` con `px-3 py-3`; `Th` con `sortable` renderiza un `<button className="min-h-11">` con `aria-sort` y `onSort`.
+  - `select.tsx`: `Select.Root/Trigger/Value/Portal/Content/Viewport/Item` de Radix; `Trigger` con `min-h-11 text-base md:text-sm`; `Content` con `z-50`.
+  - `dialog.tsx` — implementación de referencia:
 
-- [ ] **Step 6: Montar `<ToastProvider>` en `src/app/(app)/layout.tsx`** envolviendo `{children}`.
+```tsx
+'use client'
+import * as D from '@radix-ui/react-dialog'
+import { X } from 'lucide-react'
 
-- [ ] **Step 7: Verificar.** Run: `pnpm test && pnpm build` → PASS / OK.
+export function Dialog({
+  open, onOpenChange, title, children,
+}: {
+  open: boolean; onOpenChange: (v: boolean) => void; title: string; children: React.ReactNode
+}) {
+  return (
+    <D.Root open={open} onOpenChange={onOpenChange}>
+      <D.Portal>
+        <D.Overlay className="fixed inset-0 bg-black/40 z-40" />
+        <D.Content
+          className="fixed z-50 bg-card border border-border p-4 shadow-lg
+                     inset-x-0 bottom-0 rounded-t-xl max-h-[90vh] overflow-auto
+                     sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2
+                     sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-full sm:max-w-md sm:rounded-xl"
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+          <div className="flex items-center justify-between mb-3">
+            <D.Title className="font-semibold">{title}</D.Title>
+            <D.Close aria-label="Cerrar" className="p-2 -mr-2 min-h-11 min-w-11"><X size={18} /></D.Close>
+          </div>
+          {children}
+        </D.Content>
+      </D.Portal>
+    </D.Root>
+  )
+}
+```
 
-- [ ] **Step 8: Commit**
+  - `toast.tsx`: `ToastProvider` monta `Toast.Provider` + `Toast.Viewport` de Radix (`className="fixed bottom-0 inset-x-0 p-4 flex flex-col gap-2 z-[60]"`, con `paddingBottom: env(safe-area-inset-bottom)`); `useToast` expone `toast(msg, tone)` que agrega a un estado local y auto-descarta a los 4s.
+
+- [ ] **Step 8: Ejecutar — debe pasar.** Run: `pnpm test src/components/ui/dialog.test.tsx` → PASS.
+
+- [ ] **Step 9: Montar `<ToastProvider>` en `src/app/(app)/layout.tsx`** — importarlo de `@/components/ui/toast` y envolver `{children}` (queda `<ToastProvider>…</ToastProvider>` dentro del `<div className="min-h-full …">`). Ahora `useToast()` está disponible en todas las páginas de la app.
+
+- [ ] **Step 10: Verificar.** Run: `pnpm test && pnpm build` → PASS / OK.
+
+- [ ] **Step 11: Commit**
 
 ```bash
-git add -A && git commit -m "feat: primitivas de UI (Button, Input, Select, Dialog, Badge, Table, Toast)"
+git add -A && git commit -m "feat: primitivas de UI responsive (targets 44px, Dialog bottom-sheet, Table con scroll interno)"
 ```
 
 ---
@@ -1261,7 +1525,8 @@ describe('CategoryManager', () => {
 
 - [ ] **Step 2: Ejecutar — debe fallar.** Run: `pnpm test src/components/forms/CategoryManager.test.tsx` → FAIL.
 
-- [ ] **Step 3: Implementar `CategoryManager.tsx`** — form de alta (`<form action={...}>` con `createCategory.bind(null, undefined)` o wrapper que arme `FormData`), tabla con nombre / `activeProductCount` / acciones. Editar abre un `Dialog` con `Input`; archivar llama `archiveCategory(id)` y muestra `toast` con el `error` si `ok === false`.
+- [ ] **Step 3: Implementar `CategoryManager.tsx`** — form de alta (`<form action={...}>` con `createCategory.bind(null, undefined)` o wrapper que arme `FormData`), usando `<Input>`/`<Button>` de la Task 8; lista con nombre / `activeProductCount` / acciones. Editar abre un `<Dialog>` con `<Input>`; archivar llama `archiveCategory(id)` y muestra `toast` con el `error` si `ok === false`.
+  - **Responsive:** el form de alta es `flex flex-col gap-2 sm:flex-row` (input a ancho completo en móvil, botón debajo); la lista es `<ul>` de filas `flex items-center justify-between` con acciones tocables (`min-h-11`); no usa `<table>` (pocas columnas, entra bien como lista en todo ancho).
 
 - [ ] **Step 4: Ejecutar — debe pasar.** Run: `pnpm test src/components/forms/CategoryManager.test.tsx` → PASS.
 
@@ -1893,12 +2158,15 @@ git add -A && git commit -m "feat: acciones de variantes (alta con autonombre, e
 **Files:**
 - Create: `src/app/(app)/productos/page.tsx`
 - Create: `src/components/products/ProductFilters.tsx` (Client)
+- Create: `src/components/products/ProductList.tsx` (tabla `≥ md` + tarjetas `< md`, ambas en DOM)
 - Test: `src/components/products/ProductFilters.test.tsx`
+- Test: `src/components/products/ProductList.test.tsx`
 
 **Interfaces:**
-- Consumes: `listProducts` (Task 12), `listCategoryOptions` (Task 9), `money`, `integer`
+- Consumes: `listProducts` (Task 12) → `ProductRow[]`, `listCategoryOptions` (Task 9), `money`
 - Produces:
-  - `<ProductFilters categories={{value,label}[]} />` — inputs de búsqueda (`q`) y select de categoría; al cambiar, hace `router.push` con `searchParams` (debounce 300 ms en `q`)
+  - `<ProductFilters categories={{value,label}[]} />` — búsqueda (`q`, debounce 300 ms) siempre visible; el select de categoría va dentro de un `<details>` "Filtros" en `< md` y en línea (`md:` con `<details open>` / sin `<details>`) en `≥ md`. Al cambiar hace `router.push` con `searchParams`.
+  - `<ProductList rows={ProductRow[]} />` — `≥ md`: `<Table>` con Producto / Categoría / Variantes / Costo sug. / PVP sug. `< md`: lista de `<article>` (una por producto) con el nombre como link y Categoría/Variantes/Costo/PVP como pares etiqueta-valor. Las dos versiones se renderizan siempre; visibilidad por `hidden md:block` / `md:hidden`.
 
 - [ ] **Step 1: Test que falla — `src/components/products/ProductFilters.test.tsx`**
 
@@ -1929,18 +2197,101 @@ describe('ProductFilters', () => {
 
 - [ ] **Step 2: Ejecutar — debe fallar.** Run: `pnpm test src/components/products/ProductFilters.test.tsx` → FAIL.
 
-- [ ] **Step 3: Implementar `ProductFilters.tsx`** — estado local `q`, `categoryId` inicializados de `useSearchParams()`; `useEffect` con `setTimeout(300)` que construye `URLSearchParams` (omitiendo vacíos) y hace `router.push(\`${pathname}?${params}\`)`.
+- [ ] **Step 3: Implementar `ProductFilters.tsx`** — estado local `q`, `categoryId` inicializados de `useSearchParams()`; `useEffect` con `setTimeout(300)` que construye `URLSearchParams` (omitiendo vacíos) y hace `router.push(\`${pathname}?${params}\`)`. El input de búsqueda es un `<Input>` a ancho completo, siempre visible. El `<Select>` de categoría va dentro de `<details className="md:open" open>` con `<summary>Filtros</summary>` — en `< md` arranca cerrable; en `≥ md` se muestra en línea (clase utilitaria `md:[&>summary]:hidden md:open` o simplemente renderizar el select fuera del `<details>` en `md:` con `hidden md:flex` + `<details className="md:hidden">`). Elegí una de las dos; lo importante es: en móvil colapsable, en desktop siempre visible.
 
 - [ ] **Step 4: Ejecutar — debe pasar.** Run: `pnpm test src/components/products/ProductFilters.test.tsx` → PASS.
 
-- [ ] **Step 5: Implementar `src/app/(app)/productos/page.tsx`**
+- [ ] **Step 5: Test que falla — `src/components/products/ProductList.test.tsx`**
+
+```tsx
+import { describe, expect, it } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { ProductList } from './ProductList'
+
+const rows = [{ id: 'p1', name: 'Sillón Milán', categoryName: 'Sillones', variantCount: 2, defaultCost: 100, defaultPrice: 250 }]
+
+describe('ProductList', () => {
+  it('renderiza tanto la tabla como la lista de tarjetas (visibilidad por CSS)', () => {
+    render(<ProductList rows={rows} />)
+    // link al detalle aparece en ambas representaciones
+    expect(screen.getAllByRole('link', { name: 'Sillón Milán' }).length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByRole('table')).toBeInTheDocument()
+  })
+  it('muestra mensaje vacío', () => {
+    render(<ProductList rows={[]} />)
+    expect(screen.getAllByText('Sin resultados').length).toBeGreaterThanOrEqual(1)
+  })
+})
+```
+
+- [ ] **Step 6: Ejecutar — debe fallar.** Run: `pnpm test src/components/products/ProductList.test.tsx` → FAIL.
+
+- [ ] **Step 7: Implementar `src/components/products/ProductList.tsx`**
+
+```tsx
+import Link from 'next/link'
+import type { ProductRow } from '@/server/queries/products'
+import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/table'
+import { money } from '@/lib/format'
+
+export function ProductList({ rows }: { rows: ProductRow[] }) {
+  return (
+    <>
+      {/* ≥ md: tabla */}
+      <div className="hidden md:block mt-4">
+        <Table>
+          <Thead>
+            <Tr><Th>Producto</Th><Th>Categoría</Th><Th className="text-right">Variantes</Th>
+              <Th className="text-right">Costo sug.</Th><Th className="text-right">PVP sug.</Th></Tr>
+          </Thead>
+          <Tbody>
+            {rows.map((p) => (
+              <Tr key={p.id}>
+                <Td><Link href={`/productos/${p.id}`} className="underline">{p.name}</Link></Td>
+                <Td>{p.categoryName}</Td>
+                <Td className="text-right">{p.variantCount}</Td>
+                <Td className="text-right">{money(p.defaultCost)}</Td>
+                <Td className="text-right">{money(p.defaultPrice)}</Td>
+              </Tr>
+            ))}
+            {rows.length === 0 && <Tr><Td colSpan={5} className="text-center text-muted">Sin resultados</Td></Tr>}
+          </Tbody>
+        </Table>
+      </div>
+
+      {/* < md: tarjetas */}
+      <ul className="md:hidden mt-4 space-y-2">
+        {rows.map((p) => (
+          <li key={p.id}>
+            <article className="border border-border rounded-lg bg-card p-3">
+              <Link href={`/productos/${p.id}`} className="font-medium underline">{p.name}</Link>
+              <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+                <dt className="text-muted">Categoría</dt><dd>{p.categoryName}</dd>
+                <dt className="text-muted">Variantes</dt><dd>{p.variantCount}</dd>
+                <dt className="text-muted">Costo sug.</dt><dd>{money(p.defaultCost)}</dd>
+                <dt className="text-muted">PVP sug.</dt><dd>{money(p.defaultPrice)}</dd>
+              </dl>
+            </article>
+          </li>
+        ))}
+        {rows.length === 0 && <li className="text-center text-muted py-4">Sin resultados</li>}
+      </ul>
+    </>
+  )
+}
+```
+
+- [ ] **Step 8: Ejecutar — debe pasar.** Run: `pnpm test src/components/products/ProductList.test.tsx` → PASS.
+
+- [ ] **Step 9: Implementar `src/app/(app)/productos/page.tsx`**
 
 ```tsx
 import Link from 'next/link'
 import { listProducts } from '@/server/queries/products'
 import { listCategoryOptions } from '@/server/queries/categories'
 import { ProductFilters } from '@/components/products/ProductFilters'
-import { money } from '@/lib/format'
+import { ProductList } from '@/components/products/ProductList'
+import { Button } from '@/components/ui/button'
 
 export default async function ProductosPage({
   searchParams,
@@ -1953,45 +2304,23 @@ export default async function ProductosPage({
   ])
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between gap-3 mb-4">
         <h1 className="text-xl font-semibold">Productos ({total})</h1>
-        <Link href="/productos/nuevo" className="bg-primary text-primary-foreground rounded px-3 py-2 text-sm">
-          Nuevo producto
-        </Link>
+        <Link href="/productos/nuevo"><Button>Nuevo producto</Button></Link>
       </div>
       <ProductFilters categories={categories} />
-      <table className="w-full mt-4 text-sm border border-border rounded">
-        <thead className="bg-card">
-          <tr>
-            <th className="text-left p-2">Producto</th><th className="text-left p-2">Categoría</th>
-            <th className="text-right p-2">Variantes</th><th className="text-right p-2">Costo sug.</th>
-            <th className="text-right p-2">PVP sug.</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((p) => (
-            <tr key={p.id} className="border-t border-border hover:bg-card">
-              <td className="p-2"><Link href={`/productos/${p.id}`} className="underline">{p.name}</Link></td>
-              <td className="p-2">{p.categoryName}</td>
-              <td className="p-2 text-right">{p.variantCount}</td>
-              <td className="p-2 text-right">{money(p.defaultCost)}</td>
-              <td className="p-2 text-right">{money(p.defaultPrice)}</td>
-            </tr>
-          ))}
-          {rows.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-muted">Sin resultados</td></tr>}
-        </tbody>
-      </table>
+      <ProductList rows={rows} />
     </section>
   )
 }
 ```
 
-- [ ] **Step 6: Verificación manual.** `/productos`: buscar filtra en < 500 ms; el filtro de categoría funciona; los filtros quedan en la URL al recargar.
+- [ ] **Step 10: Verificación manual (responsive).** `/productos`: en desktop se ve la tabla; en viewport angosto se ven las tarjetas y el filtro de categoría queda dentro de "Filtros" colapsable; la búsqueda siempre visible; los filtros quedan en la URL al recargar.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 11: Commit**
 
 ```bash
-git add -A && git commit -m "feat: página /productos con listado, búsqueda y filtro por categoría"
+git add -A && git commit -m "feat: página /productos responsive (tabla >=md, tarjetas <md, filtros colapsables)"
 ```
 
 ---
@@ -2055,12 +2384,14 @@ describe('ProductForm (create)', () => {
 
 - [ ] **Step 2: Ejecutar — debe fallar.** Run: `pnpm test src/components/forms/ProductForm.test.tsx` → FAIL.
 
-- [ ] **Step 3: Implementar `VariantRows.tsx`** — lista controlada de filas `{ medida, tela, color, cost, price, sku }`; botón "Agregar variante" agrega una fila vacía; cada input tiene `aria-label` `"<Campo> (fila <n>)"`; expone el array vía `onChange`.
+- [ ] **Step 3: Implementar `VariantRows.tsx`** — lista controlada de filas `{ medida, tela, color, cost, price, sku }`; botón "Agregar variante" agrega una fila vacía; cada input tiene `aria-label` `"<Campo> (fila <n>)"` y usa `<Input>` (targets 44px, `inputMode="numeric"` en cost/price); expone el array vía `onChange`.
+  - **Responsive:** cada fila es un contenedor `grid grid-cols-1 gap-2 md:grid-cols-6 md:gap-3` — en `< md` cada variante queda como una **tarjeta** con campos apilados y un separador; en `≥ md` es una fila de inputs. Botón "Agregar variante" a ancho completo en `< md` (`w-full md:w-auto`).
 
 - [ ] **Step 4: Implementar `ProductForm.tsx`**
   - Estado: campos base + `variants` (de `VariantRows`).
   - `mode="create"`: `onSubmit` → `createProduct({ name, categoryId, description, defaultCost, defaultPrice, variants })`; si `ok` → `router.push('/productos')`; si no → set `error`.
   - `mode="edit"`: campos base con `updateProduct(product.id, {...})`; render de `product.variants` con edición inline (`updateVariant`) y botón archivar (`archiveVariant`, muestra `toast` con el error); form separado "Agregar variante" (`createVariant(product.id, {...})`); botón "Archivar producto" (`archiveProduct`, luego `router.push('/productos')`).
+  - **Responsive:** el bloque de campos base es `grid grid-cols-1 gap-3 md:grid-cols-2` (Nombre y Categoría ocupan las 2 columnas con `md:col-span-2`; Costo y Precio quedan lado a lado en `≥ md`). Botones de acción (`Guardar producto`, `Archivar producto`) a ancho completo en `< md` (`w-full md:w-auto`). Todo con `<Input>`/`<Select>`/`<Button>` de la Task 8.
 
 - [ ] **Step 5: Ejecutar — debe pasar.** Run: `pnpm test src/components/forms/ProductForm.test.tsx` → PASS.
 
@@ -2104,12 +2435,12 @@ export default async function EditarProductoPage({ params }: { params: Promise<{
 
 - [ ] **Step 8: Crear `src/app/(app)/productos/[id]/not-found.tsx`** — mensaje "Producto no encontrado" + link a `/productos`.
 
-- [ ] **Step 9: Verificación manual.** Alta con y sin variantes; la variante "Única" aparece cuando no se cargan variantes; edición de base y de variantes; archivar variante con stock → error; archivar producto → sale del listado.
+- [ ] **Step 9: Verificación manual.** Alta con y sin variantes; la variante "Única" aparece cuando no se cargan variantes; edición de base y de variantes; archivar variante con stock → error; archivar producto → sale del listado. **En viewport angosto:** una columna, cada variante como tarjeta, botones a ancho completo, sin scroll horizontal; el teclado numérico aparece en los campos de costo/precio.
 
 - [ ] **Step 10: Commit**
 
 ```bash
-git add -A && git commit -m "feat: formularios de alta y edición de producto + variantes"
+git add -A && git commit -m "feat: formularios de alta y edición de producto + variantes (responsive)"
 ```
 
 ---
@@ -2640,21 +2971,29 @@ git add -A && git commit -m "feat: route handlers /api/search (autocompletar) y 
 
 ---
 
-### Task 21: `FastEntryGrid` — grilla con navegación por teclado y validación por fila
+### Task 21: `FastEntryGrid` — grilla de carga con dos modos (tabla + tarjeta táctil)
 
 **Files:**
 - Create: `src/components/grid/types.ts`
 - Create: `src/components/grid/useGridKeyboardNav.ts`
 - Create: `src/components/grid/VariantSearchCell.tsx`
+- Create: `src/components/grid/QuantityStepper.tsx`
 - Create: `src/components/grid/FastEntryGrid.tsx`
 - Test: `src/components/grid/FastEntryGrid.test.tsx`
+- Test: `src/components/grid/QuantityStepper.test.tsx`
 
 **Interfaces:**
-- Consumes: `VariantOption` (Task 12) vía `fetch('/api/search?q=')`
+- Consumes: `VariantOption` (Task 12) vía `fetch('/api/search?q=')`; `useIsWide` (Task 1)
 - Produces:
   - `type GridRow = { key: string; variant: VariantOption | null; counted: string; error?: string }`
   - `validateRow(row: GridRow, allRows: GridRow[]): string | undefined` — `'Seleccioná un producto/variante'` si `variant` null; `'Cantidad inválida'` si `counted` no es entero ≥ 0; `'Ya está en la fila N'` si `variant.variantId` duplicado en una fila anterior
-  - `<FastEntryGrid onSubmit={(payload: { variantId: string; counted: number }[]) => Promise<BatchResult>} />` — maneja filas, alta por búsqueda, navegación por teclado (Enter=nueva fila / Tab / ↑↓ en Cantidad / Esc=borrar fila), marca filas con error y muestra el resumen "N guardadas, M con error" del `BatchResult`
+  - `<QuantityStepper value={string} onChange={(v: string) => void} ariaLabel={string} inputProps?={object} />` — botones **−／＋** (≥ 44px) que suman/restan 1 (mínimo 0) + `<input inputMode="numeric">` en el medio; `onChange` recibe el string. Reenvía `inputProps` al `<input>` (para `data-cell`, `onKeyDown`).
+  - `<FastEntryGrid onSubmit={(payload) => Promise<BatchResult>} initialRows?={GridRow[]} mode?={'table' | 'card'} />`:
+    - `onSubmit: (payload: { variantId: string; counted: number }[]) => Promise<BatchResult>`
+    - `mode` por defecto = `useIsWide() ? 'table' : 'card'`. Los tests lo fuerzan.
+    - **`mode='table'`** (`≥ md`: iPad landscape/portrait, desktop): grilla tipo planilla + navegación por teclado (Enter = nueva fila / Tab / ↑↓ en Cantidad / Esc = borrar fila) como camino principal; cantidad con `<QuantityStepper>`.
+    - **`mode='card'`** (`< md`: celular): una tarjeta por ítem — buscador arriba, `<QuantityStepper>` grande abajo; botón "Agregar ítem".
+    - En ambos: barra de acción **fija abajo** ("Guardar lote" + resumen "N guardadas, M con error"), con `env(safe-area-inset-bottom)`. Filas con error resaltadas (`bg-danger/10`) y su mensaje visible.
 
 - [ ] **Step 1: Test que falla — `src/components/grid/FastEntryGrid.test.tsx`**
 
@@ -2664,7 +3003,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FastEntryGrid, validateRow } from './FastEntryGrid'
 
-const FastEntryGridHarness = () => <FastEntryGrid onSubmit={vi.fn().mockResolvedValue({ batchId: 'b', saved: 0, failed: 0, results: [] })} />
+const noop = vi.fn().mockResolvedValue({ batchId: 'b', saved: 0, failed: 0, results: [] })
+const FastEntryGridHarness = () => <FastEntryGrid mode="table" onSubmit={noop} />
 
 describe('validateRow', () => {
   const base = { key: 'r1', variant: { variantId: 'v1', productName: 'P', variantName: 'V', categoryName: 'C' }, counted: '5' }
@@ -2685,9 +3025,9 @@ describe('validateRow', () => {
   })
 })
 
-describe('FastEntryGrid', () => {
+describe('FastEntryGrid (modo tabla)', () => {
   it('Enter en Cantidad agrega una fila nueva', async () => {
-    render(<FastEntryGridHarness />)  // harness que renderiza <FastEntryGrid onSubmit={vi.fn()} />
+    render(<FastEntryGridHarness />)
     const inputs = () => screen.getAllByPlaceholderText('Buscar producto…')
     expect(inputs()).toHaveLength(1)
     await userEvent.type(screen.getByLabelText('Cantidad (fila 1)'), '3{Enter}')
@@ -2695,7 +3035,7 @@ describe('FastEntryGrid', () => {
   })
   it('al guardar, llama onSubmit solo con filas válidas y muestra el resumen', async () => {
     const onSubmit = vi.fn().mockResolvedValue({ batchId: 'b', saved: 1, failed: 0, results: [] })
-    render(<FastEntryGrid onSubmit={onSubmit} initialRows={[
+    render(<FastEntryGrid mode="table" onSubmit={onSubmit} initialRows={[
       { key: 'r1', variant: { variantId: 'v1', productName: 'P', variantName: 'V', categoryName: 'C' }, counted: '4' },
       { key: 'r2', variant: null, counted: '' },
     ]} />)
@@ -2704,9 +3044,28 @@ describe('FastEntryGrid', () => {
     expect(await screen.findByText('1 guardadas, 1 con error')).toBeInTheDocument()
   })
 })
+
+describe('FastEntryGrid (modo tarjeta)', () => {
+  it('sin tabla; muestra tarjetas con stepper y "Agregar ítem"', () => {
+    render(<FastEntryGrid mode="card" onSubmit={noop} initialRows={[
+      { key: 'r1', variant: { variantId: 'v1', productName: 'P', variantName: 'V', categoryName: 'C' }, counted: '2' },
+    ]} />)
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sumar uno (ítem 1)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Agregar ítem' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Guardar lote/ })).toBeInTheDocument()
+  })
+  it('＋ incrementa la cantidad de la tarjeta', async () => {
+    render(<FastEntryGrid mode="card" onSubmit={noop} initialRows={[
+      { key: 'r1', variant: { variantId: 'v1', productName: 'P', variantName: 'V', categoryName: 'C' }, counted: '2' },
+    ]} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Sumar uno (ítem 1)' }))
+    expect(screen.getByLabelText('Cantidad (ítem 1)')).toHaveValue('3')
+  })
+})
 ```
 
-> Nota para el implementador: exportá `FastEntryGrid` con una prop opcional `initialRows` para poder testear sin pasar por la búsqueda. El `FastEntryGridHarness` es un wrapper trivial local al test.
+> Nota para el implementador: `initialRows` y `mode` son props opcionales solo para testear sin pasar por búsqueda ni `matchMedia`. En producción no se pasan.
 
 - [ ] **Step 2: Ejecutar — debe fallar.** Run: `pnpm test src/components/grid/FastEntryGrid.test.tsx` → FAIL.
 
@@ -2822,13 +3181,83 @@ export function VariantSearchCell({
 }
 ```
 
-- [ ] **Step 6: Implementar `FastEntryGrid.tsx`** con `validateRow` exportada:
+- [ ] **Step 6: `QuantityStepper` (`src/components/grid/QuantityStepper.tsx`) — test primero**
+
+```tsx
+// src/components/grid/QuantityStepper.test.tsx
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { QuantityStepper } from './QuantityStepper'
+
+describe('QuantityStepper', () => {
+  it('＋ y − mueven el valor de a 1, sin bajar de 0', async () => {
+    const onChange = vi.fn()
+    const { rerender } = render(<QuantityStepper value="0" onChange={onChange} ariaLabel="Cantidad (ítem 1)" />)
+    await userEvent.click(screen.getByRole('button', { name: 'Sumar uno (ítem 1)' }))
+    expect(onChange).toHaveBeenLastCalledWith('1')
+    onChange.mockClear()
+    rerender(<QuantityStepper value="0" onChange={onChange} ariaLabel="Cantidad (ítem 1)" />)
+    await userEvent.click(screen.getByRole('button', { name: 'Restar uno (ítem 1)' }))
+    expect(onChange).toHaveBeenLastCalledWith('0')
+  })
+  it('el input refleja el value y propaga cambios', async () => {
+    const onChange = vi.fn()
+    render(<QuantityStepper value="5" onChange={onChange} ariaLabel="Cantidad (ítem 1)" />)
+    const input = screen.getByLabelText('Cantidad (ítem 1)')
+    expect(input).toHaveValue('5')
+    await userEvent.type(input, '0')
+    expect(onChange).toHaveBeenCalledWith('50')
+  })
+})
+```
+
+Implementación:
+
+```tsx
+'use client'
+import type { InputHTMLAttributes } from 'react'
+import { Minus, Plus } from 'lucide-react'
+
+export function QuantityStepper({
+  value, onChange, ariaLabel, inputProps,
+}: {
+  value: string
+  onChange: (v: string) => void
+  ariaLabel: string
+  inputProps?: InputHTMLAttributes<HTMLInputElement>
+}) {
+  const item = ariaLabel.replace(/^Cantidad \(/, '(').replace(/\)$/, ')')  // "(ítem 1)"
+  const step = (delta: number) => {
+    const n = Number(value) || 0
+    onChange(String(Math.max(0, Math.round(n) + delta)))
+  }
+  return (
+    <div className="inline-flex items-stretch border border-border rounded overflow-hidden">
+      <button type="button" aria-label={`Restar uno ${item}`} onClick={() => step(-1)}
+        className="min-h-11 min-w-11 grid place-items-center hover:bg-border/40"><Minus size={16} /></button>
+      <input aria-label={ariaLabel} inputMode="numeric" value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-16 text-center text-base md:text-sm border-x border-border min-h-11"
+        {...inputProps} />
+      <button type="button" aria-label={`Sumar uno ${item}`} onClick={() => step(1)}
+        className="min-h-11 min-w-11 grid place-items-center hover:bg-border/40"><Plus size={16} /></button>
+    </div>
+  )
+}
+```
+
+- [ ] **Step 7: Implementar `FastEntryGrid.tsx`** con `validateRow` exportada y los dos modos:
 
 ```tsx
 'use client'
 import { useMemo, useState } from 'react'
 import type { BatchResult } from '@/server/actions/inventory'
 import type { GridRow, VariantOption } from './types'
+import { useGridKeyboardNav } from './useGridKeyboardNav'
+import { VariantSearchCell } from './VariantSearchCell'
+import { QuantityStepper } from './QuantityStepper'
+import { useIsWide } from '@/lib/useMediaQuery'
 
 let seq = 0
 const newRow = (): GridRow => ({ key: `row-${++seq}`, variant: null, counted: '' })
@@ -2844,19 +3273,20 @@ export function validateRow(row: GridRow, allRows: GridRow[]): string | undefine
 }
 
 export function FastEntryGrid({
-  onSubmit, initialRows,
+  onSubmit, initialRows, mode,
 }: {
   onSubmit: (payload: { variantId: string; counted: number }[]) => Promise<BatchResult>
   initialRows?: GridRow[]
+  mode?: 'table' | 'card'
 }) {
+  const wide = useIsWide()
+  const view = mode ?? (wide ? 'table' : 'card')
+
   const [rows, setRows] = useState<GridRow[]>(initialRows ?? [newRow()])
   const [summary, setSummary] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const validated = useMemo(
-    () => rows.map((r) => ({ ...r, error: validateRow(r, rows) })),
-    [rows],
-  )
+  const validated = useMemo(() => rows.map((r) => ({ ...r, error: validateRow(r, rows) })), [rows])
 
   const addRow = () => setRows((rs) => [...rs, newRow()])
   const deleteRow = (i: number) => setRows((rs) => (rs.length > 1 ? rs.filter((_, x) => x !== i) : rs))
@@ -2864,6 +3294,8 @@ export function FastEntryGrid({
     setRows((rs) => rs.map((r, x) => (x === i ? { ...r, variant: v } : r)))
   const setCounted = (i: number, val: string) =>
     setRows((rs) => rs.map((r, x) => (x === i ? { ...r, counted: val } : r)))
+
+  const onKeyDown = useGridKeyboardNav({ onAddRow: addRow, onDeleteRow: deleteRow })
 
   async function save() {
     const payload = validated.filter((r) => !r.error).map((r) => ({
@@ -2875,7 +3307,6 @@ export function FastEntryGrid({
     setSaving(false)
     const failedLocal = validated.length - payload.length
     setSummary(`${res.saved} guardadas, ${res.failed + failedLocal} con error`)
-    // Quitar de la grilla las filas guardadas OK
     const savedIds = new Set(res.results.filter((r) => r.ok).map((r) => r.variantId))
     setRows((rs) => {
       const kept = rs.filter((r) => !(r.variant && savedIds.has(r.variant.variantId)))
@@ -2883,45 +3314,74 @@ export function FastEntryGrid({
     })
   }
 
-  const onKeyDown = useGridKeyboardNav({ onAddRow: addRow, onDeleteRow: deleteRow })
-
   return (
-    <div>
-      <table className="w-full text-sm border border-border rounded">
-        <thead className="bg-card">
-          <tr>
-            <th className="text-left p-2 w-2/3">Producto / Variante</th>
-            <th className="text-right p-2">Cantidad contada</th>
-            <th className="p-2 w-8"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {validated.map((row, i) => (
-            <tr key={row.key} className={row.error ? 'bg-danger/10' : undefined}>
-              <td className="p-2 align-top">
-                <VariantSearchCell rowIndex={i} value={row.variant}
-                  onSelect={(o) => setVariant(i, o)} onKeyDown={onKeyDown} />
-                {row.error && <p className="text-xs text-danger mt-1">{row.error}</p>}
-              </td>
-              <td className="p-2 text-right align-top">
-                <input data-cell={`${i}:counted`} aria-label={`Cantidad (fila ${i + 1})`}
-                  inputMode="numeric" value={row.counted}
-                  onChange={(e) => setCounted(i, e.target.value)}
-                  onKeyDown={(e) => onKeyDown(e, i, 'counted')}
-                  className="w-24 border border-border rounded px-2 py-1 text-right" />
-              </td>
-              <td className="p-2 text-center align-top">
-                <button type="button" aria-label={`Eliminar fila ${i + 1}`} onClick={() => deleteRow(i)}
-                  className="text-muted hover:text-danger">×</button>
-              </td>
+    <div className="pb-24">{/* deja lugar para la barra fija */}
+      {view === 'table' ? (
+        <table className="w-full text-sm border border-border rounded">
+          <thead className="bg-card">
+            <tr>
+              <th className="text-left p-2 w-2/3">Producto / Variante</th>
+              <th className="text-right p-2">Cantidad contada</th>
+              <th className="p-2 w-12"></th>
             </tr>
+          </thead>
+          <tbody>
+            {validated.map((row, i) => (
+              <tr key={row.key} className={row.error ? 'bg-danger/10' : undefined}>
+                <td className="p-2 align-top">
+                  <VariantSearchCell rowIndex={i} value={row.variant}
+                    onSelect={(o) => setVariant(i, o)} onKeyDown={onKeyDown} />
+                  {row.error && <p className="text-xs text-danger mt-1">{row.error}</p>}
+                </td>
+                <td className="p-2 align-top text-right">
+                  <QuantityStepper value={row.counted} onChange={(v) => setCounted(i, v)}
+                    ariaLabel={`Cantidad (fila ${i + 1})`}
+                    inputProps={{
+                      'data-cell': `${i}:counted`,
+                      onKeyDown: (e) => onKeyDown(e, i, 'counted'),
+                    } as React.InputHTMLAttributes<HTMLInputElement>} />
+                </td>
+                <td className="p-2 text-center align-top">
+                  <button type="button" aria-label={`Eliminar fila ${i + 1}`} onClick={() => deleteRow(i)}
+                    className="min-h-11 min-w-11 text-muted hover:text-danger">×</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <ul className="space-y-3">
+          {validated.map((row, i) => (
+            <li key={row.key}
+              className={`border rounded-lg p-3 ${row.error ? 'border-danger bg-danger/10' : 'border-border bg-card'}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <VariantSearchCell rowIndex={i} value={row.variant}
+                    onSelect={(o) => setVariant(i, o)} onKeyDown={onKeyDown} />
+                </div>
+                <button type="button" aria-label={`Eliminar ítem ${i + 1}`} onClick={() => deleteRow(i)}
+                  className="min-h-11 min-w-11 text-muted hover:text-danger">×</button>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-sm text-muted">Cantidad contada</span>
+                <QuantityStepper value={row.counted} onChange={(v) => setCounted(i, v)}
+                  ariaLabel={`Cantidad (ítem ${i + 1})`} />
+              </div>
+              {row.error && <p className="text-xs text-danger mt-2">{row.error}</p>}
+            </li>
           ))}
-        </tbody>
-      </table>
-      <div className="mt-3 flex items-center gap-3">
-        <button type="button" onClick={addRow} className="text-sm underline">+ Agregar fila</button>
+        </ul>
+      )}
+
+      <button type="button" onClick={addRow} className="mt-3 text-sm underline w-full md:w-auto min-h-11">
+        {view === 'card' ? 'Agregar ítem' : '+ Agregar fila'}
+      </button>
+
+      {/* Barra de acción fija abajo */}
+      <div className="fixed inset-x-0 bottom-0 border-t border-border bg-background p-3 flex items-center gap-3 z-30 lg:pl-60"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <button type="button" onClick={save} disabled={saving}
-          className="bg-primary text-primary-foreground rounded px-3 py-2 text-sm disabled:opacity-60">
+          className="bg-primary text-primary-foreground rounded px-4 min-h-11 text-sm disabled:opacity-60">
           {saving ? 'Guardando…' : 'Guardar lote'}
         </button>
         {summary && <p className="text-sm">{summary}</p>}
@@ -2931,19 +3391,14 @@ export function FastEntryGrid({
 }
 ```
 
-Agregar a los imports de `FastEntryGrid.tsx`:
+> El botón "Agregar ítem" en modo tarjeta usa exactamente ese texto (lo espera el test D7 y el test de la Task).
 
-```tsx
-import { useGridKeyboardNav } from './useGridKeyboardNav'
-import { VariantSearchCell } from './VariantSearchCell'
-```
+- [ ] **Step 8: Ejecutar — deben pasar.** Run: `pnpm test src/components/grid/` → PASS (`QuantityStepper` + `FastEntryGrid` ambos modos).
 
-- [ ] **Step 7: Ejecutar — debe pasar.** Run: `pnpm test src/components/grid/FastEntryGrid.test.tsx` → PASS.
-
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add -A && git commit -m "feat: FastEntryGrid (navegación por teclado, validación por fila, resumen de lote)"
+git add -A && git commit -m "feat: FastEntryGrid dos modos (tabla con teclado >=md, tarjetas con stepper <md, barra fija)"
 ```
 
 ---
@@ -2989,12 +3444,14 @@ export default function CargaInicialPage() {
 }
 ```
 
-- [ ] **Step 3: Verificación manual (flujo completo).**
+- [ ] **Step 3: Verificación manual (flujo completo + responsive).**
   1. Crear un producto con 2 variantes en `/productos/nuevo`.
-  2. En `/carga-inicial`, buscar el producto, agregar ambas variantes, cargar cantidades con Enter entre filas.
-  3. Dejar una fila sin cantidad → al guardar se marca en rojo y el resumen dice "1 guardadas, 1 con error".
-  4. Ir a `/deposito` → las cantidades guardadas aparecen.
-  5. Volver a `/carga-inicial`, recontar una variante con otro número → `/deposito` refleja el último valor; en Studio hay 2 `InventoryTransaction` `CARGA_INICIAL` con distinto `batchId`.
+  2. **En desktop / iPad landscape:** en `/carga-inicial` la grilla está en modo tabla; buscar el producto, agregar ambas variantes, cargar cantidades con Enter entre filas; los steppers −／＋ también funcionan.
+  3. **En viewport de celular (DevTools):** la grilla pasa a modo tarjeta; "Agregar ítem" suma tarjetas; el −／＋ ajusta la cantidad sin abrir teclado; al tocar el número aparece el teclado numérico; "Guardar lote" está en la barra fija inferior y no queda tapada por la home bar.
+  4. Dejar una fila/tarjeta sin cantidad → al guardar se marca en rojo y el resumen dice "1 guardadas, 1 con error".
+  5. Ir a `/deposito` → las cantidades guardadas aparecen.
+  6. Volver a `/carga-inicial`, recontar una variante con otro número → `/deposito` refleja el último valor; en Studio hay 2 `InventoryTransaction` `CARGA_INICIAL` con distinto `batchId`.
+  7. Verificar que en ningún ancho hay scroll horizontal de página.
 
 - [ ] **Step 4: Commit**
 
@@ -3011,17 +3468,20 @@ git add -A && git commit -m "feat: página /carga-inicial conectada a saveInitia
 **Files:**
 - Create: `src/app/(app)/deposito/page.tsx`
 - Create: `src/components/deposito/StockFilters.tsx` (Client)
+- Create: `src/components/deposito/StockList.tsx` (tabla `≥ md` + tarjetas `< md`, ambas en DOM)
 - Create: `src/components/deposito/AdjustStockDialog.tsx` (Client)
 - Create: `src/components/deposito/StockTableHeader.tsx` (Client — orden por columna, **P1**)
 - Test: `src/components/deposito/StockFilters.test.tsx`
+- Test: `src/components/deposito/StockList.test.tsx`
 - Test: `src/components/deposito/AdjustStockDialog.test.tsx`
 
 **Interfaces:**
-- Consumes: `listStock` (Task 17), `listCategoryOptions` (Task 9), `adjustStock` (Task 19), `money`, `integer`, `useToast`
+- Consumes: `listStock` (Task 17) → `{ rows: StockRow[], totalVariants, totalUnits }`, `listCategoryOptions` (Task 9), `adjustStock` (Task 19), `money`, `integer`, `useToast`
 - Produces:
-  - `<StockFilters categories={{value,label}[]} />` — `q` (debounce 300 ms), select de categoría, select de estado (`todos` | `disponible` | `sin_stock`); escribe todo en `searchParams` vía `router.push`
-  - `<AdjustStockDialog variantId label currentQuantity />` — abre `Dialog` con `Input` cantidad + `Input` motivo (requerido); llama `adjustStock({ variantId, quantity, note })`; en `ok:false` muestra el error en el dialog; en `ok:true` cierra y `toast('Stock ajustado', 'success')`
-  - `<StockTableHeader sort dir />` (**P1**) — encabezados clicables que alternan `sort`/`dir` en `searchParams`
+  - `<StockFilters categories={{value,label}[]} />` — `q` (debounce 300 ms) siempre visible; los selects de **categoría** y **estado** (`todos` | `disponible` | `sin_stock`, `aria-label="Estado"`) dentro de un `<details>` "Filtros" colapsable en `< md` y en línea en `≥ md`. Escribe todo en `searchParams` vía `router.push`.
+  - `<StockList rows={StockRow[]} totalVariants totalUnits />` — `≥ md`: `<Table>` con Producto / Variante / Categoría / Stock / Costo unit. / Precio venta / (acción), y `<tfoot>` con totales. `< md`: lista de `<article>` (una por variante) con Producto·Variante en título, el resto como pares etiqueta-valor, y `<AdjustStockDialog>` como botón de ancho completo; los totales quedan en una barra fija al pie de la lista. Ambas representaciones en el DOM, visibilidad por `hidden md:block` / `md:hidden`.
+  - `<AdjustStockDialog variantId label currentQuantity />` — botón "Ajustar" (≥ 44px) abre `Dialog` (bottom-sheet en `< sm`) con `<Input>` "Nueva cantidad" (`inputMode="numeric"`) + `<Input>` "Motivo" (requerido); llama `adjustStock({ variantId, quantity, note })`; en `ok:false` muestra el error en el dialog; en `ok:true` cierra y `toast('Stock ajustado', 'success')`
+  - `<StockTableHeader sort dir />` (**P1**) — encabezados clicables (`min-h-11`) que alternan `sort`/`dir` en `searchParams`
 
 - [ ] **Step 1: Test que falla — `src/components/deposito/StockFilters.test.tsx`**
 
@@ -3085,22 +3545,52 @@ describe('AdjustStockDialog', () => {
 
 - [ ] **Step 3: Ejecutar — deben fallar.** Run: `pnpm test src/components/deposito/` → FAIL.
 
-- [ ] **Step 4: Implementar `StockFilters.tsx`** — igual patrón que `ProductFilters` (Task 15) más el `<select>` de Estado con `aria-label="Estado"` y opciones `Todos` / `Disponible` / `Sin stock`.
+- [ ] **Step 4: Implementar `StockFilters.tsx`** — mismo patrón que `ProductFilters` (Task 15): `<Input>` de búsqueda siempre visible; `<Select>` de categoría y `<select aria-label="Estado">` (opciones `Todos` / `Disponible` / `Sin stock` con `value` `todos`/`disponible`/`sin_stock`) dentro de `<details>` "Filtros" colapsable en `< md`, en línea en `≥ md`.
 
-- [ ] **Step 5: Implementar `AdjustStockDialog.tsx`** — botón "Ajustar" abre `Dialog`; estado local `quantity` (init `currentQuantity`) y `note`; "Guardar ajuste" llama `adjustStock({ variantId, quantity: Number(quantity), note })`; `ok:false` → set `error`; `ok:true` → cerrar + `toast`.
+- [ ] **Step 5: Implementar `AdjustStockDialog.tsx`** — botón "Ajustar" (`<Button size="sm">` o `min-h-11`) abre `<Dialog>` (Task 8, bottom-sheet en `< sm`); estado local `quantity` (init `String(currentQuantity)`) y `note`; inputs con `<Input>` (`aria-label` "Nueva cantidad" con `inputMode="numeric"`, y "Motivo"); "Guardar ajuste" llama `adjustStock({ variantId, quantity: Number(quantity), note })`; `ok:false` → set `error` visible en el dialog; `ok:true` → cerrar + `toast('Stock ajustado', 'success')`.
 
-- [ ] **Step 6: Implementar `StockTableHeader.tsx` (P1)** — recibe `sort`/`dir` de props; cada `<th>` clicable hace `router.push` alternando `dir` (`asc`↔`desc`) o fijando el nuevo `sort` con `dir=asc`.
+- [ ] **Step 6: Implementar `StockTableHeader.tsx` (P1)** — recibe `sort`/`dir` de props; cada encabezado es un `<button className="min-h-11">` que hace `router.push` alternando `dir` (`asc`↔`desc`) o fijando el nuevo `sort` con `dir=asc`.
 
-- [ ] **Step 7: Ejecutar — deben pasar.** Run: `pnpm test src/components/deposito/` → PASS.
+- [ ] **Step 7: Test que falla — `src/components/deposito/StockList.test.tsx`**
 
-- [ ] **Step 8: Implementar `src/app/(app)/deposito/page.tsx`**
+```tsx
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+vi.mock('@/server/actions/inventory', () => ({ adjustStock: vi.fn() }))
+vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
+import { StockList } from './StockList'
+
+const rows = [{ variantId: 'v1', productName: 'Sillón Milán', variantName: '2 cuerpos',
+  categoryName: 'Sillones', quantity: 5, unitCost: 100, unitPrice: 300 }]
+
+describe('StockList', () => {
+  it('renderiza tabla y tarjetas (visibilidad por CSS) y los totales', () => {
+    render(<StockList rows={rows} totalVariants={1} totalUnits={5} />)
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getAllByText('2 cuerpos').length).toBeGreaterThanOrEqual(2)  // tabla + tarjeta
+    expect(screen.getAllByText(/1 variantes/).length).toBeGreaterThanOrEqual(1)
+  })
+  it('muestra "Sin resultados" con lista vacía', () => {
+    render(<StockList rows={[]} totalVariants={0} totalUnits={0} />)
+    expect(screen.getAllByText('Sin resultados').length).toBeGreaterThanOrEqual(1)
+  })
+})
+```
+
+- [ ] **Step 8: Implementar `src/components/deposito/StockList.tsx`** — dos representaciones (patrón idéntico a `ProductList`, Task 15 Step 7):
+  - `<div className="hidden md:block">` con `<Table>` (Producto / Variante / Categoría / Stock der. / Costo unit. der. / Precio venta der. / acción) + `<tfoot>`: `{totalVariants} variantes` (colSpan 3) y `{integer(totalUnits)}`; fila vacía → "Sin resultados".
+  - `<ul className="md:hidden space-y-2">` con una `<article className="border border-border rounded-lg bg-card p-3">` por fila: título `<strong>{productName}</strong> · {variantName}`; `<dl className="grid grid-cols-2 ...">` con Categoría / Stock / Costo unit. / Precio venta; `<AdjustStockDialog … />` como botón de ancho completo (`className="w-full mt-2"`). Debajo de la lista, `<p className="mt-3 font-medium">{totalVariants} variantes · {integer(totalUnits)} unidades</p>`.
+  - Usa `money`/`integer` de `@/lib/format`.
+
+- [ ] **Step 9: Ejecutar — deben pasar.** Run: `pnpm test src/components/deposito/` → PASS.
+
+- [ ] **Step 10: Implementar `src/app/(app)/deposito/page.tsx`**
 
 ```tsx
 import { listStock } from '@/server/queries/inventory'
 import { listCategoryOptions } from '@/server/queries/categories'
 import { StockFilters } from '@/components/deposito/StockFilters'
-import { AdjustStockDialog } from '@/components/deposito/AdjustStockDialog'
-import { money, integer } from '@/lib/format'
+import { StockList } from '@/components/deposito/StockList'
 
 type SP = { q?: string; categoryId?: string; status?: 'todos' | 'disponible' | 'sin_stock'
   sort?: 'producto' | 'stock' | 'precio'; dir?: 'asc' | 'desc' }
@@ -3115,56 +3605,24 @@ export default async function DepositoPage({ searchParams }: { searchParams: Pro
     <section>
       <h1 className="text-xl font-semibold mb-4">Depósito</h1>
       <StockFilters categories={categories} />
-      <table className="w-full mt-4 text-sm border border-border rounded">
-        <thead className="bg-card">
-          <tr>
-            <th className="text-left p-2">Producto</th><th className="text-left p-2">Variante</th>
-            <th className="text-left p-2">Categoría</th><th className="text-right p-2">Stock</th>
-            <th className="text-right p-2">Costo unit.</th><th className="text-right p-2">Precio venta</th>
-            <th className="p-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.variantId} className="border-t border-border">
-              <td className="p-2">{r.productName}</td>
-              <td className="p-2">{r.variantName}</td>
-              <td className="p-2">{r.categoryName}</td>
-              <td className="p-2 text-right">{integer(r.quantity)}</td>
-              <td className="p-2 text-right">{money(r.unitCost)}</td>
-              <td className="p-2 text-right">{money(r.unitPrice)}</td>
-              <td className="p-2 text-right">
-                <AdjustStockDialog variantId={r.variantId}
-                  label={`${r.productName} · ${r.variantName}`} currentQuantity={r.quantity} />
-              </td>
-            </tr>
-          ))}
-          {rows.length === 0 && <tr><td colSpan={7} className="p-4 text-center text-muted">Sin resultados</td></tr>}
-        </tbody>
-        <tfoot>
-          <tr className="border-t border-border font-medium">
-            <td className="p-2" colSpan={3}>{totalVariants} variantes</td>
-            <td className="p-2 text-right">{integer(totalUnits)}</td>
-            <td colSpan={3}></td>
-          </tr>
-        </tfoot>
-      </table>
+      <StockList rows={rows} totalVariants={totalVariants} totalUnits={totalUnits} />
     </section>
   )
 }
 ```
 
-- [ ] **Step 9: Verificación manual.**
+- [ ] **Step 11: Verificación manual (responsive).**
   - `/deposito` muestra todas las variantes activas; las sin `InventoryStock` en 0.
+  - **Desktop / iPad landscape:** tabla con totales en el pie.
+  - **Celular:** tarjetas apiladas, "Ajustar" a ancho completo, filtros dentro de "Filtros" colapsable, totales al pie; sin scroll horizontal.
   - Filtro de categoría + estado + búsqueda funcionan y persisten en la URL al recargar.
-  - Pie muestra conteo de variantes y suma de unidades.
-  - "Ajustar" sin motivo → error; con motivo → stock cambia y aparece un `InventoryTransaction` `AJUSTE` en Studio.
+  - "Ajustar" sin motivo → error; con motivo → stock cambia y aparece un `InventoryTransaction` `AJUSTE` en Studio; en `< sm` el dialog es bottom-sheet.
   - (P1) Click en encabezado ordena asc/desc.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
-git add -A && git commit -m "feat: vista /deposito (stock en tiempo real, filtros, ajuste manual, orden)"
+git add -A && git commit -m "feat: vista /deposito responsive (tabla >=md, tarjetas <md, filtros colapsables, ajuste manual)"
 ```
 
 ---
@@ -3249,7 +3707,8 @@ describe('setUserActive', () => {
 
 - [ ] **Step 4: Ejecutar — debe pasar.** Run: `pnpm test src/server/actions/users.test.ts` → PASS.
 
-- [ ] **Step 5: Implementar `UserManager.tsx`** — alta (email, nombre, rol, contraseña) + tabla con rol/estado y botones "Editar" (Dialog) y "Activar/Desactivar". Mostrar `error` de las actions con `toast`.
+- [ ] **Step 5: Implementar `UserManager.tsx`** — alta (email, nombre, rol, contraseña) con `<Input>`/`<Select>`/`<Button>` + lista con rol/estado y botones "Editar" (`<Dialog>`) y "Activar/Desactivar". Mostrar `error` de las actions con `toast`.
+  - **Responsive:** form de alta `grid grid-cols-1 gap-2 md:grid-cols-2`; en `≥ md` lista como `<Table>` (Email / Nombre / Rol / Estado / acciones), en `< md` tarjetas apiladas con acciones a ancho completo (mismo patrón dual que `ProductList`/`StockList`). Targets `min-h-11`.
 
 - [ ] **Step 6: Implementar `src/app/(app)/usuarios/page.tsx`**
 
@@ -3312,6 +3771,7 @@ const nextConfig: NextConfig = { serverExternalPackages: ['@prisma/client', 'bcr
   5. **Deploy**: push a `main` → Vercel construye. Verificar `GET /<app>/api/health` → `{ "ok": true }`.
   6. **Smoke test en producción**: login con el admin del seed → crear categoría → crear producto → cargar stock en `/carga-inicial` → verlo en `/deposito`.
   7. **Región**: confirmar que la Function Region de Vercel y la región de Neon coinciden (Settings → Functions).
+  8. **Smoke test multi-dispositivo (obligatorio antes de dar por cerrada la etapa):** abrir la URL de producción en (a) **iPad con teclado** — carga de stock en modo tabla con Enter/Tab, y también con toques; (b) **iPad sin teclado / celular** — modo tarjeta, steppers −／＋, teclado numérico, barra "Guardar lote" no tapada; (c) **computadora**. En los tres: sin scroll horizontal, drawer de navegación en pantallas chicas, sidebar fija en grande, inputs sin auto-zoom al enfocar.
 
 - [ ] **Step 4: Reescribir `README.md`** — nombre del proyecto, stack, cómo correr local (`.env`, `pnpm i`, `pnpm db:migrate`, `pnpm db:seed`, `pnpm dev`), cómo correr tests (`pnpm test`, requiere `DATABASE_URL` a una base de test), y link a `docs/deploy.md`.
 
@@ -3330,7 +3790,7 @@ git add -A && git commit -m "chore: preparación de producción (postinstall pri
 git push origin master
 ```
 
-- [ ] **Step 8: Deploy real** siguiendo `docs/deploy.md` y completar el smoke test del paso 3.6.
+- [ ] **Step 8: Deploy real** siguiendo `docs/deploy.md` y completar los smoke tests de los pasos 3.6 y 3.8 (multi-dispositivo).
 
 ---
 
@@ -3383,6 +3843,11 @@ git add -A && git commit -m "feat: pegar cantidades desde Excel en la grilla de 
 | §3.4 Auth (sesión, proxy, guards, seed) | 2, 3, 4, 5, 6 |
 | §3.5 Manejo de errores (validación, error por fila, CHECK, `not-found`) | 2 (CHECK), 6/9/13/14 (validación), 16 (`not-found`), 18 (error por fila) |
 | §3.6 Testing | cada tarea (TDD) + `src/test/db.ts` en 6 |
+| §3.7 Responsive (breakpoints, targets 44px, 16px, safe-area, `useMediaQuery`) | 1 (globals + hook + viewport), y aplicado en 7, 8, 10, 15, 16, 21, 23, 24 |
+| §3.7 App shell drawer/sidebar | 7 |
+| §3.7 Tablas → tarjetas en móvil | 15 (`ProductList`), 23 (`StockList`), 24 (`UserManager`) |
+| §3.7 Grilla dos modos (tabla/tarjeta + stepper + barra fija) | 21 |
+| §3.7 `Dialog` bottom-sheet en `< sm` | 8 |
 | §4 Schema (6 modelos, enums, relaciones, índices) | 2 |
 | §4.2.1 Autocreación variante "Única" | 13 |
 | §4.2.2 Costo/precio efectivo | 11, 12, 17 |
@@ -3400,14 +3865,19 @@ git add -A && git commit -m "feat: pegar cantidades desde Excel en la grilla de 
 | C3 Editar producto / ABM variantes | 14, 16 |
 | C4 Archivar producto | 13, 16 |
 | D1 Agregar filas por búsqueda | 20, 21 |
-| D2 Navegación por teclado | 21 |
+| D2 Navegación por teclado (modo tabla) | 21 |
 | D3 Validación por fila | 21 |
 | D4 Guardado por lote transaccional | 18, 22 |
 | D5 Reanudar carga / recontar | 18 (test), 22 (verificación) |
 | D6 Pegar desde Excel (P2) | 26 |
-| E1 Consultar stock | 17, 23 |
-| E2 Filtrar y buscar | 23 |
+| D7 Carga táctil (tarjetas + stepper + barra fija) | 21, 22 |
+| E1 Consultar stock (tabla `≥ md` / tarjetas `< md`) | 17, 23 |
+| E2 Filtrar y buscar (filtros colapsables en `< md`) | 23 |
 | E3 Ordenar (P1) | 23 |
-| F1 Ajuste manual con motivo | 19, 23 |
-| §6 Despliegue | 25 |
+| F1 Ajuste manual con motivo (bottom-sheet en `< sm`) | 19, 23 |
+| G1 Navegación adaptable (sidebar/drawer) | 7 |
+| G2 Ergonomía táctil (44px, 16px, teclado numérico, safe-area) | 1, 8, 21, y todas las de UI |
+| G3 Sin scroll horizontal de página | 1 (globals + `min-w-0`), 8 (`Table` con scroll interno) |
+| G4 Continuidad entre dispositivos (misma funcionalidad) | verificación en 22, 23, 25 |
+| §6 Despliegue (+ smoke test multi-dispositivo) | 25 |
 

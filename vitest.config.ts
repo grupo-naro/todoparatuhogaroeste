@@ -8,6 +8,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // Serialize test FILES: several integration suites TRUNCATE the same
+    // `gestion` DB; without this their resets race across workers.
+    fileParallelism: false,
   },
   resolve: { alias: {
     '@': fileURLToPath(new URL('./src', import.meta.url)),

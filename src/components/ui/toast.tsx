@@ -15,7 +15,7 @@ type ToastItem = { id: number; msg: string; tone?: Tone }
 
 type ToastCtx = { toast: (msg: string, tone?: Tone) => void }
 
-const Ctx = createContext<ToastCtx>({ toast: () => {} })
+const Ctx = createContext<ToastCtx | null>(null)
 
 const toneClass: Record<Tone, string> = {
   success: 'border-success text-success',
@@ -30,14 +30,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setItems((cur) => cur.filter((t) => t.id !== id))
   }, [])
 
-  const toast = useCallback(
-    (msg: string, tone?: Tone) => {
-      const id = ++idRef.current
-      setItems((cur) => [...cur, { id, msg, tone }])
-      setTimeout(() => remove(id), 4000)
-    },
-    [remove],
-  )
+  const toast = useCallback((msg: string, tone?: Tone) => {
+    const id = ++idRef.current
+    setItems((cur) => [...cur, { id, msg, tone }])
+  }, [])
 
   return (
     <Ctx.Provider value={{ toast }}>
@@ -68,5 +64,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 export function useToast(): ToastCtx {
-  return useContext(Ctx)
+  const ctx = useContext(Ctx)
+  if (!ctx) throw new Error('useToast debe usarse dentro de <ToastProvider>')
+  return ctx
 }

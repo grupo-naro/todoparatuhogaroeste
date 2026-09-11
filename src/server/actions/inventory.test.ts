@@ -4,7 +4,7 @@ vi.mock('@/server/auth/guards', () => ({
   requireUser: vi.fn().mockResolvedValue({ sub: 'USER_ID', role: 'DEPOSITO', name: 'Ana' }),
 }))
 import { prisma, resetDb } from '@/test/db'
-import { saveInitialStockBatch } from './inventory'
+import { saveInitialStockBatch, adjustStock } from './inventory'
 
 let v1: string, v2: string, userId: string
 beforeEach(async () => {
@@ -70,5 +70,22 @@ describe('saveInitialStockBatch', () => {
     // v1's stock must be UNCHANGED — the whole transaction rolled back
     const after = await prisma.inventoryStock.findUnique({ where: { variantId: v1 } })
     expect(after?.quantity).toBe(before?.quantity ?? 0)
+  })
+})
+
+describe('adjustStock', () => {
+  it('registra un AJUSTE con motivo y actualiza el stock', async () => {
+    const res = await adjustStock({ variantId: v1, quantity: 1, note: 'Rotura en depósito' })
+    expect(res).toMatchObject({ ok: true, delta: -2, quantityAfter: 1 })
+    const t = await prisma.inventoryTransaction.findFirstOrThrow({ where: { variantId: v1, type: 'AJUSTE' } })
+    expect(t).toMatchObject({ note: 'Rotura en depósito', quantityDelta: -2, quantityAfter: 1 })
+  })
+  it('rechaza motivo vacío', async () => {
+    expect(await adjustStock({ variantId: v1, quantity: 2, note: '' }))
+      .toEqual({ ok: false, error: 'El motivo es obligatorio' })
+  })
+  it('rechaza cantidad negativa', async () => {
+    expect(await adjustStock({ variantId: v1, quantity: -1, note: 'x' }))
+      .toEqual({ ok: false, error: 'No puede ser negativo' })
   })
 })

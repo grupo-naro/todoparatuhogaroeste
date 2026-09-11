@@ -1,8 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { prisma, resetDb } from '@/test/db'
-// `getProduct` is exported by ./products (later tasks depend on it) but the
-// brief's 5 tests don't exercise it; omitted from this import to keep lint clean.
-import { listProducts, searchProductVariants } from './products'
+import { getProduct, listProducts, searchProductVariants } from './products'
 
 let categoryId: string
 beforeEach(async () => {
@@ -50,5 +48,22 @@ describe('searchProductVariants', () => {
   })
   it('ignora consultas de menos de 2 caracteres', async () => {
     expect(await searchProductVariants('a')).toEqual([])
+  })
+})
+
+describe('getProduct', () => {
+  it('incluye variantes activas con su stock', async () => {
+    const p = await prisma.product.create({
+      data: { name: 'Sillón Test', categoryId,
+        variants: { create: [{ name: 'V1' }, { name: 'V2', archivedAt: new Date() }] } },
+    })
+    const v1 = await prisma.productVariant.findFirstOrThrow({ where: { name: 'V1' } })
+    await prisma.inventoryStock.create({ data: { variantId: v1.id, quantity: 5 } })
+    const detail = await getProduct(p.id)
+    expect(detail?.variants).toHaveLength(1) // archived V2 excluded
+    expect(detail?.variants[0]).toMatchObject({ name: 'V1', stock: { quantity: 5 } })
+  })
+  it('devuelve null para un id inexistente', async () => {
+    expect(await getProduct('00000000-0000-0000-0000-000000000000')).toBeNull()
   })
 })

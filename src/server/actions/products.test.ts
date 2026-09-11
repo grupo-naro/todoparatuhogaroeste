@@ -30,6 +30,13 @@ describe('createProduct', () => {
     expect(v.name).toBe('2 cuerpos · Chenille · Gris')
     expect(v.price?.toString()).toBe('300')
   })
+  it('rechaza dos variantes con el mismo nombre en el mismo producto', async () => {
+    expect(await createProduct({
+      name: 'Sillón Y', categoryId,
+      variants: [{ name: 'Estándar' }, { name: 'Estándar' }],
+    })).toEqual({ ok: false, error: 'Hay variantes con el mismo nombre' })
+    expect(await prisma.product.count()).toBe(0) // tx rolled back, no orphan product
+  })
   it('rechaza nombre de producto duplicado en la misma categoría', async () => {
     await createProduct({ name: 'Mesa Roble', categoryId })
     expect(await createProduct({ name: 'Mesa Roble', categoryId }))

@@ -39,9 +39,19 @@ export async function createProduct(input: unknown): Promise<SaveResult> {
     return { ok: true, id: product.id }
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-      const target = String(e.meta?.target ?? '')
-      if (target.includes('productId')) return { ok: false, error: 'Hay variantes con el mismo nombre' }
-      return { ok: false, error: 'Ya existe un producto con ese nombre en la categoría' }
+      // `@prisma/adapter-pg` does NOT populate `e.meta.target`; the constraint
+      // identity lives in `e.meta.modelName` / `driverAdapterError.cause.constraint.index`.
+      const meta = e.meta as
+        | { modelName?: string; target?: unknown; driverAdapterError?: { cause?: { constraint?: { index?: string } } } }
+        | undefined
+      const constraint = meta?.driverAdapterError?.cause?.constraint?.index ?? String(meta?.target ?? '')
+      const isVariant =
+        meta?.modelName === 'ProductVariant' ||
+        constraint.includes('ProductVariant') ||
+        constraint.includes('productId')
+      return isVariant
+        ? { ok: false, error: 'Hay variantes con el mismo nombre' }
+        : { ok: false, error: 'Ya existe un producto con ese nombre en la categoría' }
     }
     throw e
   }

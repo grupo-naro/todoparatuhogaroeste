@@ -2,13 +2,11 @@ import './load-env.ts'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
+import { slugify } from '../src/lib/format.ts'
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
 const CATEGORIES = ['Somieres', 'Respaldos', 'Sillones', 'Mesas', 'Sillas', 'Muebles a medida / Otros']
-const slugify = (s: string) =>
-  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
 async function main() {
   for (const name of CATEGORIES) {

@@ -256,14 +256,14 @@ function ExistingVariantRow({ variant }: { variant: ProductDetail['variants'][nu
       </label>
 
       <div className="flex flex-col gap-2 sm:flex-row md:col-span-6">
-        <Button type="button" size="sm" disabled={saving} className="w-full md:w-auto" onClick={handleSave}>
+        <Button type="button" size="sm" disabled={saving} className="min-h-11 w-full md:w-auto" onClick={handleSave}>
           Guardar variante
         </Button>
         <Button
           type="button"
           variant="danger"
           size="sm"
-          className="w-full md:w-auto"
+          className="min-h-11 w-full md:w-auto"
           onClick={handleArchive}
         >
           Archivar variante

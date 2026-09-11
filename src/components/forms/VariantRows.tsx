@@ -101,7 +101,7 @@ export function VariantRows({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="w-full md:w-auto"
+                className="min-h-11 w-full md:w-auto"
                 onClick={() => removeRow(i)}
               >
                 Quitar fila {n}

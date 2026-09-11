@@ -1,7 +1,11 @@
-type Num = number | string | null | undefined
+import type { Prisma } from '@prisma/client'
+
+type Num = number | string | Prisma.Decimal | null | undefined
 const n = (v: Num): number | null => {
   if (v === null || v === undefined || v === '') return null
-  const x = typeof v === 'string' ? Number(v) : v
+  // Prisma returns Decimal columns as Decimal.js instances (not primitives);
+  // coerce everything non-number through Number() so `Decimal → number` works.
+  const x = typeof v === 'number' ? v : Number(v)
   return Number.isNaN(x) ? null : x
 }
 

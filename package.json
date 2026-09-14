@@ -12,7 +12,9 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test:db:up": "docker compose up -d db-test",
+    "test:db:migrate": "node scripts/test-db-migrate.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

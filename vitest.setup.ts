@@ -1,4 +1,6 @@
-import './prisma/load-env'
+// A los tests NUNCA les tiene que llegar `.env` real — `src/test/db.ts` hace
+// TRUNCATE de las tablas entre corridas, y `.env` apunta a la base de Neon.
+process.loadEnvFile('.env.test')
 import '@testing-library/jest-dom/vitest'
 import { afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'

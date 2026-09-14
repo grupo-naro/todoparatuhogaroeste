@@ -13,7 +13,7 @@ export type SaveResult = { ok: true; id: string } | { ok: false; error: string }
 const createSchema = productSchema.extend({ variants: z.array(variantSchema).optional() })
 
 export async function createProduct(input: unknown): Promise<SaveResult> {
-  await requireUser()
+  const session = await requireUser()
   const parsed = createSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   const { variants, ...base } = parsed.data
@@ -24,18 +24,28 @@ export async function createProduct(input: unknown): Promise<SaveResult> {
         await tx.productVariant.create({ data: { productId: p.id, name: 'Única', isDefault: true } })
       } else {
         for (const v of variants) {
-          await tx.productVariant.create({
+          const created = await tx.productVariant.create({
             data: {
               productId: p.id, name: variantDisplayName(v),
               medida: v.medida ?? null, tela: v.tela ?? null, color: v.color ?? null,
               cost: v.cost ?? null, price: v.price ?? null, sku: v.sku ?? null,
             },
           })
+          if (v.stockInicial != null) {
+            await tx.inventoryStock.create({ data: { variantId: created.id, quantity: v.stockInicial } })
+            await tx.inventoryTransaction.create({
+              data: {
+                variantId: created.id, type: 'CARGA_INICIAL',
+                quantityDelta: v.stockInicial, quantityAfter: v.stockInicial, userId: session.sub,
+              },
+            })
+          }
         }
       }
       return p
     })
     revalidatePath('/productos')
+    revalidatePath('/deposito')
     return { ok: true, id: product.id }
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
@@ -49,9 +59,10 @@ export async function createProduct(input: unknown): Promise<SaveResult> {
         meta?.modelName === 'ProductVariant' ||
         constraint.includes('ProductVariant') ||
         constraint.includes('productId')
-      return isVariant
-        ? { ok: false, error: 'Hay variantes con el mismo nombre' }
-        : { ok: false, error: 'Ya existe un producto con ese nombre en la categoría' }
+      if (!isVariant) return { ok: false, error: 'Ya existe un producto con ese nombre en la categoría' }
+      return constraint.includes('sku')
+        ? { ok: false, error: 'Hay variantes con el mismo SKU' }
+        : { ok: false, error: 'Hay variantes con el mismo nombre' }
     }
     throw e
   }

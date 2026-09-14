@@ -21,24 +21,37 @@ function variantP2002(e: unknown): SaveResult | null {
 }
 
 export async function createVariant(productId: string, input: unknown): Promise<SaveResult> {
-  await requireUser()
+  const session = await requireUser()
   const parsed = variantSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   const v = parsed.data
   try {
-    const created = await prisma.productVariant.create({
-      data: {
-        productId,
-        name: variantDisplayName(v),
-        medida: v.medida ?? null,
-        tela: v.tela ?? null,
-        color: v.color ?? null,
-        cost: v.cost ?? null,
-        price: v.price ?? null,
-        sku: v.sku ?? null,
-      },
+    const created = await prisma.$transaction(async (tx) => {
+      const created = await tx.productVariant.create({
+        data: {
+          productId,
+          name: variantDisplayName(v),
+          medida: v.medida ?? null,
+          tela: v.tela ?? null,
+          color: v.color ?? null,
+          cost: v.cost ?? null,
+          price: v.price ?? null,
+          sku: v.sku ?? null,
+        },
+      })
+      if (v.stockInicial != null) {
+        await tx.inventoryStock.create({ data: { variantId: created.id, quantity: v.stockInicial } })
+        await tx.inventoryTransaction.create({
+          data: {
+            variantId: created.id, type: 'CARGA_INICIAL',
+            quantityDelta: v.stockInicial, quantityAfter: v.stockInicial, userId: session.sub,
+          },
+        })
+      }
+      return created
     })
     revalidatePath(`/productos/${productId}`)
+    revalidatePath('/deposito')
     return { ok: true, id: created.id }
   } catch (e) {
     const hit = variantP2002(e)

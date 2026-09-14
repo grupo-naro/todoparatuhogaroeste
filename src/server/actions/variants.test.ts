@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest'
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/server/auth/guards', () => ({
-  requireUser: vi.fn().mockResolvedValue({ sub: 'u1', role: 'DEPOSITO', name: 'A' }),
+  requireUser: vi.fn(),
 }))
 import { prisma, resetDb } from '@/test/db'
 import { createVariant, archiveVariant } from './variants'
@@ -9,12 +9,13 @@ import { createVariant, archiveVariant } from './variants'
 let productId: string, userId: string
 beforeEach(async () => {
   await resetDb()
+  userId = (await prisma.user.create({ data: { email: 'u@u.com', name: 'U', passwordHash: 'x' } })).id
+  vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'U' })
   const c = await prisma.category.create({ data: { name: 'Mesas', slug: 'mesas' } })
   const p = await prisma.product.create({
     data: { name: 'Mesa', categoryId: c.id, variants: { create: [{ name: 'Única', isDefault: true }] } },
   })
   productId = p.id
-  userId = (await prisma.user.create({ data: { email: 'u@u.com', name: 'U', passwordHash: 'x' } })).id
 })
 
 describe('createVariant', () => {
@@ -31,6 +32,23 @@ describe('createVariant', () => {
     expect((await createVariant(productId, { name: 'Con SKU', sku: 'ABC' })).ok).toBe(true)
     expect(await createVariant(productId, { name: 'Otra', sku: 'ABC' }))
       .toEqual({ ok: false, error: 'Ya existe una variante con ese SKU' })
+  })
+  it('SKU vacío ("") en varias variantes no colisiona — se guarda como null', async () => {
+    expect((await createVariant(productId, { name: 'V1', sku: '' })).ok).toBe(true)
+    expect((await createVariant(productId, { name: 'V2', sku: '' })).ok).toBe(true)
+  })
+  it('con stockInicial crea el InventoryStock y una transacción CARGA_INICIAL', async () => {
+    const res = await createVariant(productId, { color: 'Rojo', stockInicial: 7 })
+    expect(res.ok).toBe(true)
+    const id = (res as { ok: true; id: string }).id
+    expect(await prisma.inventoryStock.findUniqueOrThrow({ where: { variantId: id } })).toMatchObject({ quantity: 7 })
+    const t = await prisma.inventoryTransaction.findFirstOrThrow({ where: { variantId: id } })
+    expect(t).toMatchObject({ type: 'CARGA_INICIAL', quantityDelta: 7, quantityAfter: 7, userId })
+  })
+  it('sin stockInicial no crea InventoryStock', async () => {
+    const res = await createVariant(productId, { color: 'Verde' })
+    const id = (res as { ok: true; id: string }).id
+    expect(await prisma.inventoryStock.findUnique({ where: { variantId: id } })).toBeNull()
   })
 })
 

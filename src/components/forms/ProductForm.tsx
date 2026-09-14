@@ -6,6 +6,7 @@ import { createVariant, updateVariant, archiveVariant } from '@/server/actions/v
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
+import { QuantityStepper } from '@/components/grid/QuantityStepper'
 import { VariantRows, emptyVariantRow, type VariantRow } from './VariantRows'
 
 // Local types instead of importing `@/server/queries/products` /
@@ -39,6 +40,18 @@ type Props =
 
 function toStr(v: number | string | null | undefined): string {
   return v === null || v === undefined ? '' : String(v)
+}
+
+// Prellena "Agregar variante" con los datos de la última variante existente
+// (medida/tela/color/costo/precio suelen repetirse; el SKU no, es único por
+// variante). Sin variantes todavía, arranca del costo/precio del producto.
+function initialAddVariantRow(product: ProductDetail): VariantRow {
+  const last = product.variants[product.variants.length - 1]
+  if (!last) return { ...emptyVariantRow, cost: toStr(product.defaultCost), price: toStr(product.defaultPrice) }
+  return {
+    medida: last.medida ?? '', tela: last.tela ?? '', color: last.color ?? '',
+    cost: toStr(last.cost), price: toStr(last.price), sku: '', stockInicial: '',
+  }
 }
 
 export function ProductForm(props: Props) {
@@ -151,7 +164,12 @@ export function ProductForm(props: Props) {
         {props.mode === 'create' && (
           <div className="flex flex-col gap-2">
             <h2 className="text-sm font-medium">Variantes</h2>
-            <VariantRows value={variants} onChange={setVariants} />
+            <VariantRows
+              value={variants}
+              onChange={setVariants}
+              defaultCost={defaultCost}
+              defaultPrice={defaultPrice}
+            />
           </div>
         )}
 
@@ -170,7 +188,7 @@ export function ProductForm(props: Props) {
               <ExistingVariantRow key={v.id} variant={v} />
             ))}
           </div>
-          <AddVariantForm productId={props.product.id} />
+          <AddVariantForm productId={props.product.id} initial={initialAddVariantRow(props.product)} />
         </div>
       )}
 
@@ -215,7 +233,7 @@ function ExistingVariantRow({ variant }: { variant: ProductDetail['variants'][nu
   }
 
   return (
-    <div className="grid grid-cols-1 gap-2 rounded border border-border p-3 md:grid-cols-6 md:gap-3">
+    <div className="grid grid-cols-1 gap-2 rounded border border-border p-3 lg:grid-cols-6 lg:gap-3">
       <label className="flex flex-col gap-1">
         <span className="text-sm">Medida</span>
         <Input
@@ -255,30 +273,30 @@ function ExistingVariantRow({ variant }: { variant: ProductDetail['variants'][nu
         <Input aria-label={`SKU (${variant.name})`} value={sku} onChange={(e) => setSku(e.target.value)} />
       </label>
 
-      <div className="flex flex-col gap-2 sm:flex-row md:col-span-6">
-        <Button type="button" size="sm" disabled={saving} className="min-h-11 w-full md:w-auto" onClick={handleSave}>
+      <div className="flex flex-col gap-2 sm:flex-row lg:col-span-6">
+        <Button type="button" size="sm" disabled={saving} className="w-full md:w-auto" onClick={handleSave}>
           Guardar variante
         </Button>
         <Button
           type="button"
           variant="danger"
           size="sm"
-          className="min-h-11 w-full md:w-auto"
+          className="w-full md:w-auto"
           onClick={handleArchive}
         >
           Archivar variante
         </Button>
       </div>
-      {error && <p className="text-sm text-danger md:col-span-6">{error}</p>}
+      {error && <p className="text-sm text-danger lg:col-span-6">{error}</p>}
       {variant.stock && (
-        <p className="text-xs text-muted md:col-span-6">Stock: {variant.stock.quantity}</p>
+        <p className="text-xs text-muted lg:col-span-6">Stock: {variant.stock.quantity}</p>
       )}
     </div>
   )
 }
 
-function AddVariantForm({ productId }: { productId: string }) {
-  const [row, setRow] = useState<VariantRow>({ ...emptyVariantRow })
+function AddVariantForm({ productId, initial }: { productId: string; initial: VariantRow }) {
+  const [row, setRow] = useState<VariantRow>(initial)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -296,27 +314,43 @@ function AddVariantForm({ productId }: { productId: string }) {
       cost: row.cost === '' ? null : row.cost,
       price: row.price === '' ? null : row.price,
       sku: row.sku || null,
+      stockInicial: row.stockInicial === '' ? null : row.stockInicial,
     })
     setSaving(false)
-    if (res.ok) setRow({ ...emptyVariantRow })
+    if (res.ok) setRow(initial)
     else setError(res.error)
   }
 
   return (
     <div className="flex flex-col gap-2 rounded border border-border p-3">
       <h3 className="text-sm font-medium">Agregar variante</h3>
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-6 md:gap-3">
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-7 lg:gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-sm">Medida</span>
-          <Input aria-label="Medida (nueva variante)" value={row.medida} onChange={(e) => update('medida', e.target.value)} />
+          <Input
+            aria-label="Medida (nueva variante)"
+            value={row.medida}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => update('medida', e.target.value)}
+          />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-sm">Tela</span>
-          <Input aria-label="Tela (nueva variante)" value={row.tela} onChange={(e) => update('tela', e.target.value)} />
+          <Input
+            aria-label="Tela (nueva variante)"
+            value={row.tela}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => update('tela', e.target.value)}
+          />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-sm">Color</span>
-          <Input aria-label="Color (nueva variante)" value={row.color} onChange={(e) => update('color', e.target.value)} />
+          <Input
+            aria-label="Color (nueva variante)"
+            value={row.color}
+            onFocus={(e) => e.target.select()}
+            onChange={(e) => update('color', e.target.value)}
+          />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-sm">Costo</span>
@@ -324,6 +358,7 @@ function AddVariantForm({ productId }: { productId: string }) {
             aria-label="Costo (nueva variante)"
             inputMode="numeric"
             value={row.cost}
+            onFocus={(e) => e.target.select()}
             onChange={(e) => update('cost', e.target.value)}
           />
         </label>
@@ -333,12 +368,21 @@ function AddVariantForm({ productId }: { productId: string }) {
             aria-label="Precio (nueva variante)"
             inputMode="numeric"
             value={row.price}
+            onFocus={(e) => e.target.select()}
             onChange={(e) => update('price', e.target.value)}
           />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-sm">SKU</span>
           <Input aria-label="SKU (nueva variante)" value={row.sku} onChange={(e) => update('sku', e.target.value)} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm">Stock inicial</span>
+          <QuantityStepper
+            ariaLabel="Stock inicial (nueva variante)"
+            value={row.stockInicial}
+            onChange={(v) => update('stockInicial', v)}
+          />
         </label>
       </div>
       {error && <p className="text-sm text-danger">{error}</p>}

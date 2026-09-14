@@ -1,6 +1,7 @@
 'use client'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { QuantityStepper } from '@/components/grid/QuantityStepper'
 
 export type VariantRow = {
   medida: string
@@ -9,9 +10,12 @@ export type VariantRow = {
   cost: string
   price: string
   sku: string
+  stockInicial: string
 }
 
-export const emptyVariantRow: VariantRow = { medida: '', tela: '', color: '', cost: '', price: '', sku: '' }
+export const emptyVariantRow: VariantRow = {
+  medida: '', tela: '', color: '', cost: '', price: '', sku: '', stockInicial: '',
+}
 
 /**
  * Controlled list of new-variant rows (used while creating a product, before
@@ -21,16 +25,27 @@ export const emptyVariantRow: VariantRow = { medida: '', tela: '', color: '', co
 export function VariantRows({
   value,
   onChange,
+  defaultCost,
+  defaultPrice,
 }: {
   value: VariantRow[]
   onChange: (rows: VariantRow[]) => void
+  defaultCost?: string
+  defaultPrice?: string
 }) {
   function updateRow(index: number, field: keyof VariantRow, fieldValue: string) {
     onChange(value.map((row, i) => (i === index ? { ...row, [field]: fieldValue } : row)))
   }
 
   function addRow() {
-    onChange([...value, { ...emptyVariantRow }])
+    const last = value[value.length - 1]
+    // El SKU es único por variante y el stock inicial suele variar fila a
+    // fila — ninguno de los dos se copia, para no forzar un choque de SKU ni
+    // una cantidad de estante equivocada si el usuario olvida cambiarla.
+    const next: VariantRow = last
+      ? { ...last, sku: '', stockInicial: '' }
+      : { ...emptyVariantRow, cost: defaultCost ?? '', price: defaultPrice ?? '' }
+    onChange([...value, next])
   }
 
   function removeRow(index: number) {
@@ -44,13 +59,14 @@ export function VariantRows({
         return (
           <div
             key={i}
-            className="grid grid-cols-1 gap-2 rounded border border-border p-3 md:grid-cols-6 md:gap-3 md:border-0 md:p-0"
+            className="grid grid-cols-1 gap-2 rounded border border-border p-3 lg:grid-cols-7 lg:gap-3 lg:border-0 lg:p-0"
           >
             <label className="flex flex-col gap-1">
               <span className="text-sm">Medida</span>
               <Input
                 aria-label={`Medida (fila ${n})`}
                 value={row.medida}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => updateRow(i, 'medida', e.target.value)}
               />
             </label>
@@ -59,6 +75,7 @@ export function VariantRows({
               <Input
                 aria-label={`Tela (fila ${n})`}
                 value={row.tela}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => updateRow(i, 'tela', e.target.value)}
               />
             </label>
@@ -67,6 +84,7 @@ export function VariantRows({
               <Input
                 aria-label={`Color (fila ${n})`}
                 value={row.color}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => updateRow(i, 'color', e.target.value)}
               />
             </label>
@@ -76,6 +94,7 @@ export function VariantRows({
                 aria-label={`Costo (fila ${n})`}
                 inputMode="numeric"
                 value={row.cost}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => updateRow(i, 'cost', e.target.value)}
               />
             </label>
@@ -85,6 +104,7 @@ export function VariantRows({
                 aria-label={`Precio (fila ${n})`}
                 inputMode="numeric"
                 value={row.price}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => updateRow(i, 'price', e.target.value)}
               />
             </label>
@@ -96,12 +116,20 @@ export function VariantRows({
                 onChange={(e) => updateRow(i, 'sku', e.target.value)}
               />
             </label>
-            <div className="md:col-span-6">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Stock inicial</span>
+              <QuantityStepper
+                ariaLabel={`Stock inicial (fila ${n})`}
+                value={row.stockInicial}
+                onChange={(v) => updateRow(i, 'stockInicial', v)}
+              />
+            </label>
+            <div className="lg:col-span-7">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="min-h-11 w-full md:w-auto"
+                className="w-full md:w-auto"
                 onClick={() => removeRow(i)}
               >
                 Quitar fila {n}

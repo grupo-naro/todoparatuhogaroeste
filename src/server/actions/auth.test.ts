@@ -10,12 +10,13 @@ vi.mock('@/server/auth/session', () => ({
   destroySession: vi.fn(),
   SESSION_COOKIE: 'session',
 }))
+vi.mock('@/server/auth/guards', () => ({ requireUser: vi.fn() }))
 
 import { redirect } from 'next/navigation'
 import { createSession } from '@/server/auth/session'
 import { prisma, resetDb } from '@/test/db'
-import { hashPassword } from '@/server/auth/password'
-import { signIn } from './auth'
+import { hashPassword, verifyPassword } from '@/server/auth/password'
+import { signIn, changePassword } from './auth'
 
 beforeAll(() => {
   process.env.AUTH_SECRET = 'test-secret-1234567890'
@@ -72,5 +73,48 @@ describe('signIn', () => {
     })
     await expect(signIn(undefined, fd('nuevo@a.com', '30123456'))).rejects.toThrow('REDIRECT:/productos')
     expect(vi.mocked(createSession)).toHaveBeenCalledWith(expect.objectContaining({ mustChangePassword: true }))
+  })
+})
+
+describe('changePassword', () => {
+  it('actualiza la contraseña, apaga mustChangePassword y reemite la sesión', async () => {
+    const user = await prisma.user.create({
+      data: { email: 'p@a.com', name: 'P', passwordHash: 'old-hash', mustChangePassword: true },
+    })
+    vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({
+      sub: user.id, role: 'DEPOSITO', name: 'P', mustChangePassword: true,
+    })
+    const fdPw = new FormData()
+    fdPw.set('password', 'nueva123')
+    fdPw.set('confirmPassword', 'nueva123')
+
+    await expect(changePassword(undefined, fdPw)).rejects.toThrow('REDIRECT:/productos')
+
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
+    expect(updated.mustChangePassword).toBe(false)
+    expect(await verifyPassword('nueva123', updated.passwordHash)).toBe(true)
+    expect(vi.mocked(createSession)).toHaveBeenCalledWith({
+      sub: user.id, role: 'DEPOSITO', name: 'P', mustChangePassword: false,
+    })
+  })
+
+  it('rechaza contraseña de menos de 6 caracteres', async () => {
+    vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({
+      sub: 'x', role: 'DEPOSITO', name: 'X', mustChangePassword: true,
+    })
+    const fdPw = new FormData()
+    fdPw.set('password', '123')
+    fdPw.set('confirmPassword', '123')
+    expect(await changePassword(undefined, fdPw)).toEqual({ error: 'La contraseña debe tener al menos 6 caracteres' })
+  })
+
+  it('rechaza si las contraseñas no coinciden', async () => {
+    vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({
+      sub: 'x', role: 'DEPOSITO', name: 'X', mustChangePassword: true,
+    })
+    const fdPw = new FormData()
+    fdPw.set('password', 'nueva123')
+    fdPw.set('confirmPassword', 'otra123')
+    expect(await changePassword(undefined, fdPw)).toEqual({ error: 'Las contraseñas no coinciden' })
   })
 })

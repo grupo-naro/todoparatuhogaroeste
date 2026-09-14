@@ -31,9 +31,9 @@ describe('requireUser', () => {
 })
 
 describe('requireRole', () => {
-  it('redirige a /deposito si el rol no coincide', async () => {
+  it('redirige a /productos si el rol no coincide', async () => {
     vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'DEPOSITO', name: 'Ana' })
-    await expect(requireRole('ADMIN')).rejects.toThrow('REDIRECT:/deposito')
+    await expect(requireRole('ADMIN')).rejects.toThrow('REDIRECT:/productos')
   })
   it('devuelve la sesión si el rol coincide', async () => {
     vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'ADMIN', name: 'Ana' })

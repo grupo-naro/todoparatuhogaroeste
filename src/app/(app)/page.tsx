@@ -1,2 +1,2 @@
 import { redirect } from 'next/navigation'
-export default function IndexPage() { redirect('/deposito') }
+export default function IndexPage() { redirect('/productos') }

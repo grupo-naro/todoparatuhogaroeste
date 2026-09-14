@@ -11,6 +11,6 @@ export async function requireUser(): Promise<SessionPayload> {
 
 export async function requireRole(role: RoleName): Promise<SessionPayload> {
   const session = await requireUser()
-  if (session.role !== role) redirect('/deposito')
+  if (session.role !== role) redirect('/productos')
   return session
 }

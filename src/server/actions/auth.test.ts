@@ -34,11 +34,11 @@ const fd = (email: string, password: string) => {
 }
 
 describe('signIn', () => {
-  it('con credenciales válidas crea sesión y redirige a /deposito', async () => {
+  it('con credenciales válidas crea sesión y redirige a /productos', async () => {
     await prisma.user.create({
       data: { email: 'a@a.com', name: 'Ana', role: 'DEPOSITO', passwordHash: await hashPassword('secreto123') },
     })
-    await expect(signIn(undefined, fd('a@a.com', 'secreto123'))).rejects.toThrow('REDIRECT:/deposito')
+    await expect(signIn(undefined, fd('a@a.com', 'secreto123'))).rejects.toThrow('REDIRECT:/productos')
     expect(vi.mocked(createSession)).toHaveBeenCalledWith(expect.objectContaining({ role: 'DEPOSITO', name: 'Ana' }))
   })
 

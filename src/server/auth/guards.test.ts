@@ -21,7 +21,7 @@ beforeEach(() => {
 
 describe('requireUser', () => {
   it('devuelve la sesión si existe', async () => {
-    vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'DEPOSITO', name: 'Ana' })
+    vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'DEPOSITO', name: 'Ana', mustChangePassword: false })
     await expect(requireUser()).resolves.toMatchObject({ sub: 'u1' })
   })
   it('redirige a /login si no hay sesión', async () => {
@@ -32,11 +32,11 @@ describe('requireUser', () => {
 
 describe('requireRole', () => {
   it('redirige a /productos si el rol no coincide', async () => {
-    vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'DEPOSITO', name: 'Ana' })
+    vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'DEPOSITO', name: 'Ana', mustChangePassword: false })
     await expect(requireRole('ADMIN')).rejects.toThrow('REDIRECT:/productos')
   })
   it('devuelve la sesión si el rol coincide', async () => {
-    vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'ADMIN', name: 'Ana' })
+    vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'ADMIN', name: 'Ana', mustChangePassword: false })
     await expect(requireRole('ADMIN')).resolves.toMatchObject({ role: 'ADMIN' })
   })
 })

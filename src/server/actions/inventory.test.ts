@@ -10,7 +10,7 @@ let v1: string
 beforeEach(async () => {
   await resetDb()
   const userId = (await prisma.user.create({ data: { email: 'a@a.com', name: 'Ana', passwordHash: 'x' } })).id
-  vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'Ana' })
+  vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'Ana', mustChangePassword: false })
   const c = await prisma.category.create({ data: { name: 'Mesas', slug: 'mesas' } })
   const p = await prisma.product.create({
     data: { name: 'Mesa', categoryId: c.id, variants: { create: [{ name: 'A' }] } },

@@ -6,7 +6,7 @@ import type { RoleName } from '@/lib/constants'
 export const SESSION_COOKIE = 'session'
 const MAX_AGE = 60 * 60 * 8 // 8h
 
-export type SessionPayload = { sub: string; role: RoleName; name: string }
+export type SessionPayload = { sub: string; role: RoleName; name: string; mustChangePassword: boolean }
 
 function secret(): Uint8Array {
   const s = process.env.AUTH_SECRET
@@ -15,7 +15,7 @@ function secret(): Uint8Array {
 }
 
 export async function signSession(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ role: payload.role, name: payload.name })
+  return new SignJWT({ role: payload.role, name: payload.name, mustChangePassword: payload.mustChangePassword })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(payload.sub)
     .setIssuedAt()
@@ -26,8 +26,13 @@ export async function signSession(payload: SessionPayload): Promise<string> {
 export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, secret())
-    if (!payload.sub || typeof payload.role !== 'string' || typeof payload.name !== 'string') return null
-    return { sub: payload.sub, role: payload.role as RoleName, name: payload.name }
+    if (
+      !payload.sub ||
+      typeof payload.role !== 'string' ||
+      typeof payload.name !== 'string' ||
+      typeof payload.mustChangePassword !== 'boolean'
+    ) return null
+    return { sub: payload.sub, role: payload.role as RoleName, name: payload.name, mustChangePassword: payload.mustChangePassword }
   } catch {
     return null
   }

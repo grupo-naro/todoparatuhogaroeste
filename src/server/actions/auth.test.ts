@@ -62,4 +62,15 @@ describe('signIn', () => {
     })
     expect(await signIn(undefined, fd('a@a.com', 'secreto123'))).toEqual({ error: 'Usuario inactivo' })
   })
+
+  it('propaga mustChangePassword del usuario a la sesión', async () => {
+    await prisma.user.create({
+      data: {
+        email: 'nuevo@a.com', name: 'Nuevo', role: 'DEPOSITO', mustChangePassword: true,
+        passwordHash: await hashPassword('30123456'),
+      },
+    })
+    await expect(signIn(undefined, fd('nuevo@a.com', '30123456'))).rejects.toThrow('REDIRECT:/productos')
+    expect(vi.mocked(createSession)).toHaveBeenCalledWith(expect.objectContaining({ mustChangePassword: true }))
+  })
 })

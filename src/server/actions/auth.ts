@@ -19,7 +19,7 @@ export async function signIn(_prev: unknown, formData: FormData): Promise<{ erro
   }
   if (!user.active) return { error: 'Usuario inactivo' }
 
-  await createSession({ sub: user.id, role: user.role, name: user.name })
+  await createSession({ sub: user.id, role: user.role, name: user.name, mustChangePassword: user.mustChangePassword })
   redirect('/productos')
 }
 

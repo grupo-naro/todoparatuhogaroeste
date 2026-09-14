@@ -11,7 +11,7 @@ let categoryId: string, userId: string
 beforeEach(async () => {
   await resetDb()
   userId = (await prisma.user.create({ data: { email: 'a@a.com', name: 'Ana', passwordHash: 'x' } })).id
-  vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'Ana' })
+  vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'Ana', mustChangePassword: false })
   categoryId = (await prisma.category.create({ data: { name: 'Mesas', slug: 'mesas' } })).id
 })
 

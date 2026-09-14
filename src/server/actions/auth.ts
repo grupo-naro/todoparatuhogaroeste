@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/server/db'
 import { verifyPassword, hashPassword } from '@/server/auth/password'
 import { createSession, destroySession } from '@/server/auth/session'
-import { requireUser } from '@/server/auth/guards'
+import { requireUserAllowingPasswordChange } from '@/server/auth/guards'
 import { loginSchema, changePasswordSchema } from '@/server/validation/auth'
 
 export async function signIn(_prev: unknown, formData: FormData): Promise<{ error: string }> {
@@ -30,12 +30,18 @@ export async function signOut(): Promise<void> {
 }
 
 export async function changePassword(_prev: unknown, formData: FormData): Promise<{ error: string }> {
-  const session = await requireUser()
+  const session = await requireUserAllowingPasswordChange()
+  if (!session.mustChangePassword) redirect('/productos')
   const parsed = changePasswordSchema.safeParse({
     password: formData.get('password'),
     confirmPassword: formData.get('confirmPassword'),
   })
   if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: session.sub } })
+  if (user.dni && parsed.data.password === user.dni) {
+    return { error: 'La contraseña nueva no puede ser tu DNI' }
+  }
 
   const passwordHash = await hashPassword(parsed.data.password)
   await prisma.user.update({ where: { id: session.sub }, data: { passwordHash, mustChangePassword: false } })

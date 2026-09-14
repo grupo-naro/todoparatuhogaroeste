@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation'
-import { requireUser } from '@/server/auth/guards'
+import { requireUserAllowingPasswordChange } from '@/server/auth/guards'
 import { ChangePasswordForm } from './ChangePasswordForm'
 
 export default async function CambiarContrasenaPage() {
-  const session = await requireUser()
+  const session = await requireUserAllowingPasswordChange()
   if (!session.mustChangePassword) redirect('/productos')
   return <ChangePasswordForm />
 }

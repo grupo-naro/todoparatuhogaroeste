@@ -10,7 +10,7 @@ vi.mock('./session', () => {
   return { readSession }
 })
 
-import { requireUser, requireRole } from './guards'
+import { requireUser, requireRole, requireUserAllowingPasswordChange } from './guards'
 import { redirect } from 'next/navigation'
 import { readSession } from './session'
 
@@ -28,6 +28,10 @@ describe('requireUser', () => {
     vi.mocked(readSession).mockResolvedValue(null)
     await expect(requireUser()).rejects.toThrow('REDIRECT:/login')
   })
+  it('redirige a /cambiar-contrasena si la sesión debe cambiar la contraseña', async () => {
+    vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'DEPOSITO', name: 'Ana', mustChangePassword: true })
+    await expect(requireUser()).rejects.toThrow('REDIRECT:/cambiar-contrasena')
+  })
 })
 
 describe('requireRole', () => {
@@ -38,5 +42,16 @@ describe('requireRole', () => {
   it('devuelve la sesión si el rol coincide', async () => {
     vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'ADMIN', name: 'Ana', mustChangePassword: false })
     await expect(requireRole('ADMIN')).resolves.toMatchObject({ role: 'ADMIN' })
+  })
+})
+
+describe('requireUserAllowingPasswordChange', () => {
+  it('devuelve la sesión aunque deba cambiar la contraseña', async () => {
+    vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'DEPOSITO', name: 'Ana', mustChangePassword: true })
+    await expect(requireUserAllowingPasswordChange()).resolves.toMatchObject({ sub: 'u1' })
+  })
+  it('redirige a /login si no hay sesión', async () => {
+    vi.mocked(readSession).mockResolvedValue(null)
+    await expect(requireUserAllowingPasswordChange()).rejects.toThrow('REDIRECT:/login')
   })
 })

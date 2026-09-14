@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { requireUser } from '@/server/auth/guards'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
@@ -6,7 +5,6 @@ import { ToastProvider } from '@/components/ui/toast'
 
 export default async function AppLayout({ children }: LayoutProps<'/'>) {
   const session = await requireUser()
-  if (session.mustChangePassword) redirect('/cambiar-contrasena')
   return (
     <div className="min-h-full flex flex-col">
       <Header userName={session.name} role={session.role} />

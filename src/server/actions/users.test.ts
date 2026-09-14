@@ -5,7 +5,7 @@ vi.mock('@/server/auth/guards', () => ({
 }))
 import { prisma, resetDb } from '@/test/db'
 import { verifyPassword } from '@/server/auth/password'
-import { createUser } from './users'
+import { createUser, resetUserPassword } from './users'
 import { listUsers } from '@/server/queries/users'
 
 const fd = (fields: Record<string, string>) => {
@@ -62,8 +62,6 @@ describe('listUsers', () => {
     expect(row).not.toHaveProperty('dni')
   })
 })
-
-import { resetUserPassword } from './users'
 
 describe('resetUserPassword', () => {
   it('vuelve la contraseña al DNI y reactiva mustChangePassword', async () => {

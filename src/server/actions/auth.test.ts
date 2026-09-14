@@ -10,7 +10,7 @@ vi.mock('@/server/auth/session', () => ({
   destroySession: vi.fn(),
   SESSION_COOKIE: 'session',
 }))
-vi.mock('@/server/auth/guards', () => ({ requireUser: vi.fn() }))
+vi.mock('@/server/auth/guards', () => ({ requireUserAllowingPasswordChange: vi.fn() }))
 
 import { redirect } from 'next/navigation'
 import { createSession } from '@/server/auth/session'
@@ -81,7 +81,7 @@ describe('changePassword', () => {
     const user = await prisma.user.create({
       data: { email: 'p@a.com', name: 'P', passwordHash: 'old-hash', mustChangePassword: true },
     })
-    vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({
+    vi.mocked((await import('@/server/auth/guards')).requireUserAllowingPasswordChange).mockResolvedValue({
       sub: user.id, role: 'DEPOSITO', name: 'P', mustChangePassword: true,
     })
     const fdPw = new FormData()
@@ -99,7 +99,7 @@ describe('changePassword', () => {
   })
 
   it('rechaza contraseña de menos de 6 caracteres', async () => {
-    vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({
+    vi.mocked((await import('@/server/auth/guards')).requireUserAllowingPasswordChange).mockResolvedValue({
       sub: 'x', role: 'DEPOSITO', name: 'X', mustChangePassword: true,
     })
     const fdPw = new FormData()
@@ -109,12 +109,35 @@ describe('changePassword', () => {
   })
 
   it('rechaza si las contraseñas no coinciden', async () => {
-    vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({
+    vi.mocked((await import('@/server/auth/guards')).requireUserAllowingPasswordChange).mockResolvedValue({
       sub: 'x', role: 'DEPOSITO', name: 'X', mustChangePassword: true,
     })
     const fdPw = new FormData()
     fdPw.set('password', 'nueva123')
     fdPw.set('confirmPassword', 'otra123')
     expect(await changePassword(undefined, fdPw)).toEqual({ error: 'Las contraseñas no coinciden' })
+  })
+
+  it('rechaza si la sesión no necesita cambiar la contraseña', async () => {
+    vi.mocked((await import('@/server/auth/guards')).requireUserAllowingPasswordChange).mockResolvedValue({
+      sub: 'x', role: 'DEPOSITO', name: 'X', mustChangePassword: false,
+    })
+    const fdPw = new FormData()
+    fdPw.set('password', 'nueva123')
+    fdPw.set('confirmPassword', 'nueva123')
+    await expect(changePassword(undefined, fdPw)).rejects.toThrow('REDIRECT:/productos')
+  })
+
+  it('rechaza que la contraseña nueva sea el propio DNI', async () => {
+    const user = await prisma.user.create({
+      data: { email: 'dni@a.com', name: 'D', passwordHash: 'old-hash', dni: '30123456', mustChangePassword: true },
+    })
+    vi.mocked((await import('@/server/auth/guards')).requireUserAllowingPasswordChange).mockResolvedValue({
+      sub: user.id, role: 'DEPOSITO', name: 'D', mustChangePassword: true,
+    })
+    const fdPw = new FormData()
+    fdPw.set('password', '30123456')
+    fdPw.set('confirmPassword', '30123456')
+    expect(await changePassword(undefined, fdPw)).toEqual({ error: 'La contraseña nueva no puede ser tu DNI' })
   })
 })

@@ -1,7 +1,7 @@
 'use client'
-import { useActionState, useEffect, useRef } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import { createUser, resetUserPassword } from '@/server/actions/users'
-import { ROLES } from '@/lib/constants'
+import { ROLES, type RoleName } from '@/lib/constants'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
@@ -11,7 +11,7 @@ type UserRow = {
   name: string
   email: string
   phone: string | null
-  role: 'ADMIN' | 'DEPOSITO'
+  role: RoleName
   active: boolean
   hasDni: boolean
 }
@@ -27,10 +27,19 @@ export function UserManager({ users }: { users: UserRow[] }) {
     else toast(altaState.error, 'danger')
   }, [altaState, toast])
 
+  const [resettingId, setResettingId] = useState<string | null>(null)
+
   async function handleReset(id: string) {
-    const res = await resetUserPassword(id)
-    if (res.ok) toast('Contraseña reseteada al DNI', 'success')
-    else toast(res.error, 'danger')
+    setResettingId(id)
+    try {
+      const res = await resetUserPassword(id)
+      if (res.ok) toast('Contraseña reseteada al DNI', 'success')
+      else toast(res.error, 'danger')
+    } catch {
+      toast('No se pudo resetear la contraseña', 'danger')
+    } finally {
+      setResettingId(null)
+    }
   }
 
   return (
@@ -72,33 +81,36 @@ export function UserManager({ users }: { users: UserRow[] }) {
         </div>
       </form>
 
-      <ul className="flex flex-col divide-y divide-border">
-        {users.map((u) => (
-          <li key={u.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col">
-              <span className="font-medium">{u.name}</span>
-              <span className="text-sm text-muted">
-                <span>{u.email}</span>
-                {u.phone && <span> · {u.phone}</span>}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted">{u.role}</span>
-              <span className={`text-sm ${u.active ? 'text-success' : 'text-danger'}`}>
-                {u.active ? 'Activo' : 'Inactivo'}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={!u.hasDni}
-                onClick={() => handleReset(u.id)}
-              >
-                Resetear contraseña ({u.name})
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {users.length === 0 && <p className="text-sm text-muted">No hay usuarios.</p>}
+      {users.length > 0 && (
+        <ul className="flex flex-col divide-y divide-border">
+          {users.map((u) => (
+            <li key={u.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col">
+                <span className="font-medium">{u.name}</span>
+                <span className="text-sm text-muted">
+                  <span>{u.email}</span>
+                  {u.phone && <span> · {u.phone}</span>}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted">{u.role}</span>
+                <span className={`text-sm ${u.active ? 'text-success' : 'text-danger'}`}>
+                  {u.active ? 'Activo' : 'Inactivo'}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={!u.hasDni || resettingId === u.id}
+                  onClick={() => handleReset(u.id)}
+                >
+                  Resetear contraseña ({u.name})
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

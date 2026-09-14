@@ -4,7 +4,7 @@ import { toNumber } from '@/lib/pricing'
 
 export type ProductRow = {
   id: string; name: string; categoryName: string; variantCount: number
-  defaultCost: number | null; defaultPrice: number | null
+  defaultCost: number | null; defaultPrice: number | null; coverImageUrl: string | null
 }
 
 export async function listProducts(params: {
@@ -25,6 +25,7 @@ export async function listProducts(params: {
       include: {
         category: { select: { name: true } },
         _count: { select: { variants: { where: { archivedAt: null } } } },
+        images: { where: { order: 0 }, select: { url: true }, take: 1 },
       },
     }),
     prisma.product.count({ where }),
@@ -33,6 +34,7 @@ export async function listProducts(params: {
     rows: rows.map((p): ProductRow => ({
       id: p.id, name: p.name, categoryName: p.category.name, variantCount: p._count.variants,
       defaultCost: toNumber(p.defaultCost), defaultPrice: toNumber(p.defaultPrice),
+      coverImageUrl: p.images[0]?.url ?? null,
     })),
     total,
   }
@@ -44,6 +46,7 @@ export async function getProduct(id: string) {
     include: {
       category: { select: { id: true, name: true } },
       variants: { where: { archivedAt: null }, orderBy: { createdAt: 'asc' }, include: { stock: true } },
+      images: { orderBy: { order: 'asc' } },
     },
   })
 }

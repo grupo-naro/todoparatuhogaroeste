@@ -18,6 +18,11 @@ vi.mock('@/server/actions/products', () => ({ createProduct, updateProduct: vi.f
 vi.mock('@/server/actions/variants', () => ({ createVariant, updateVariant: vi.fn(), archiveVariant: vi.fn() }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
+vi.mock('@/components/products/ProductImageGallery', () => ({
+  ProductImageGallery: ({ productId, images }: { productId: string; images: { id: string }[] }) => (
+    <div data-testid="gallery">{productId}:{images.length}</div>
+  ),
+}))
 import { ProductForm, type ProductDetail } from './ProductForm'
 
 const cats = [{ value: 'c1', label: 'Mesas' }]
@@ -78,6 +83,7 @@ describe('ProductForm (edit)', () => {
         cost: '100', price: '200', sku: 'SKU-ROJO', isDefault: true, stock: null,
       },
     ],
+    images: [{ id: 'img1', url: 'https://blob.example/img1.jpg', order: 0 }],
   }
 
   it('"Agregar variante" toma medida/tela/color/costo/precio de la última variante existente, sin el SKU', () => {
@@ -104,5 +110,10 @@ describe('ProductForm (edit)', () => {
     await userEvent.type(screen.getByLabelText('Stock inicial (nueva variante)'), '3')
     await userEvent.click(screen.getByRole('button', { name: 'Agregar variante' }))
     expect(createVariant).toHaveBeenCalledWith('p1', expect.objectContaining({ stockInicial: '3' }))
+  })
+
+  it('monta ProductImageGallery con el productId y las imágenes del producto', () => {
+    render(<ProductForm mode="edit" product={product} categories={cats} />)
+    expect(screen.getByTestId('gallery')).toHaveTextContent('p1:1')
   })
 })

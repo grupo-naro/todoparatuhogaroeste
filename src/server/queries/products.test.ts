@@ -34,6 +34,16 @@ describe('listProducts', () => {
     await prisma.product.create({ data: { name: 'Viejo', categoryId, archivedAt: new Date() } })
     expect((await listProducts({})).total).toBe(0)
   })
+  it('expone la portada (order 0) como coverImageUrl, o null si no tiene fotos', async () => {
+    const p = await prisma.product.create({ data: { name: 'Sillón Milán', categoryId } })
+    await prisma.productImage.create({
+      data: { productId: p.id, url: 'https://blob.example/cover.jpg', pathname: 'products/x/cover.jpg', order: 0 },
+    })
+    const other = await prisma.product.create({ data: { name: 'Sillón Oslo', categoryId } })
+    const { rows } = await listProducts({})
+    expect(rows.find((r) => r.id === p.id)?.coverImageUrl).toBe('https://blob.example/cover.jpg')
+    expect(rows.find((r) => r.id === other.id)?.coverImageUrl).toBeNull()
+  })
 })
 
 describe('searchProductVariants', () => {
@@ -65,5 +75,16 @@ describe('getProduct', () => {
   })
   it('devuelve null para un id inexistente', async () => {
     expect(await getProduct('00000000-0000-0000-0000-000000000000')).toBeNull()
+  })
+  it('incluye las imágenes ordenadas por order', async () => {
+    const p = await prisma.product.create({ data: { name: 'Sillón Test', categoryId } })
+    await prisma.productImage.create({
+      data: { productId: p.id, url: 'https://blob.example/b.jpg', pathname: 'b', order: 1 },
+    })
+    await prisma.productImage.create({
+      data: { productId: p.id, url: 'https://blob.example/a.jpg', pathname: 'a', order: 0 },
+    })
+    const detail = await getProduct(p.id)
+    expect(detail?.images.map((i) => i.url)).toEqual(['https://blob.example/a.jpg', 'https://blob.example/b.jpg'])
   })
 })

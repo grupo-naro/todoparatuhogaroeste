@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import { QuantityStepper } from '@/components/grid/QuantityStepper'
+import { ProductImageGallery } from '@/components/products/ProductImageGallery'
 import { VariantRows, emptyVariantRow, type VariantRow } from './VariantRows'
 
 // Local types instead of importing `@/server/queries/products` /
@@ -32,6 +33,7 @@ export type ProductDetail = {
     isDefault: boolean
     stock: { quantity: number } | null
   }>
+  images: Array<{ id: string; url: string; order: number }>
 }
 
 type Props =
@@ -190,6 +192,10 @@ export function ProductForm(props: Props) {
           </div>
           <AddVariantForm productId={props.product.id} initial={initialAddVariantRow(props.product)} />
         </div>
+      )}
+
+      {props.mode === 'edit' && (
+        <ProductImageGallery productId={props.product.id} images={props.product.images} />
       )}
 
       {props.mode === 'edit' && (

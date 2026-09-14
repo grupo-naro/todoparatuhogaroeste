@@ -39,3 +39,15 @@ export async function createUser(_prev: unknown, formData: FormData): Promise<Ac
   revalidatePath('/usuarios')
   return { ok: true }
 }
+
+export async function resetUserPassword(id: string): Promise<ActionResult> {
+  await requireRole('ADMIN')
+  const user = await prisma.user.findUniqueOrThrow({ where: { id } })
+  if (!user.dni) return { ok: false, error: 'Este usuario no tiene DNI cargado, no se puede resetear la contraseña' }
+  await prisma.user.update({
+    where: { id },
+    data: { passwordHash: await hashPassword(user.dni), mustChangePassword: true },
+  })
+  revalidatePath('/usuarios')
+  return { ok: true }
+}

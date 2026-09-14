@@ -62,3 +62,26 @@ describe('listUsers', () => {
     expect(row).not.toHaveProperty('dni')
   })
 })
+
+import { resetUserPassword } from './users'
+
+describe('resetUserPassword', () => {
+  it('vuelve la contraseña al DNI y reactiva mustChangePassword', async () => {
+    await createUser(undefined, fd({ name: 'Aa', email: 'reset@a.com', phone: '', role: 'DEPOSITO', dni: '30123456' }))
+    let u = await prisma.user.findUniqueOrThrow({ where: { email: 'reset@a.com' } })
+    // Simulate the user having already changed their password once.
+    await prisma.user.update({ where: { id: u.id }, data: { passwordHash: 'otro-hash', mustChangePassword: false } })
+
+    const res = await resetUserPassword(u.id)
+    expect(res).toEqual({ ok: true })
+    u = await prisma.user.findUniqueOrThrow({ where: { id: u.id } })
+    expect(u.mustChangePassword).toBe(true)
+    expect(await verifyPassword('30123456', u.passwordHash)).toBe(true)
+  })
+
+  it('rechaza resetear un usuario sin DNI cargado', async () => {
+    const legacy = await prisma.user.create({ data: { name: 'Legacy', email: 'legacy@a.com', passwordHash: 'x' } })
+    const res = await resetUserPassword(legacy.id)
+    expect(res).toEqual({ ok: false, error: 'Este usuario no tiene DNI cargado, no se puede resetear la contraseña' })
+  })
+})

@@ -1,8 +1,12 @@
 @import "tailwindcss";
 
+/* Paleta tomada del isologo (Jael Castillo — Todo para tu Hogar): salvia y
+   crema del círculo, tinta verde oscura del texto. Ver hexs verificados por
+   contraste WCAG en la conversación de diseño, no son valores arbitrarios. */
 :root {
-  --background: #f8f8f7; --foreground: #1a1a1a; --card: #ffffff; --border: #e4e4e2;
-  --muted: #6b6b6b; --primary: #1a1a1a; --primary-foreground: #ffffff;
+  --background: #f7f5ef; --foreground: #23281f; --card: #ffffff; --border: #e3e0d5;
+  --muted: #6c7860; --primary: #55704a; --primary-foreground: #ffffff;
+  --accent-soft: #c0ccb4;
   --danger: #b42318; --success: #067647;
 }
 
@@ -10,6 +14,7 @@
   --color-background: var(--background); --color-foreground: var(--foreground);
   --color-card: var(--card); --color-border: var(--border); --color-muted: var(--muted);
   --color-primary: var(--primary); --color-primary-foreground: var(--primary-foreground);
+  --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger); --color-success: var(--success);
   --font-sans: var(--font-geist-sans);
 }

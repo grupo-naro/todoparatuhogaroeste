@@ -11,7 +11,7 @@ export function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () =
   return (
     <Link href={href} aria-current={active ? 'page' : undefined} onClick={onNavigate}
       className={cn('flex items-center gap-3 rounded px-3 py-3 text-sm min-h-11',
-        active ? 'bg-primary text-primary-foreground' : 'hover:bg-border/50')}>
+        active ? 'bg-accent-soft text-foreground font-medium' : 'hover:bg-border/50')}>
       <Icon size={18} /> {label}
     </Link>
   )

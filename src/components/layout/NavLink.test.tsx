@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { Home } from 'lucide-react'
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/deposito' }))
+vi.mock('next/navigation', () => ({ usePathname: () => '/categorias' }))
 vi.mock('next/link', () => ({
   default: ({ children, href, onClick, ...props }: ComponentProps<'a'>) => (
     <a
@@ -24,8 +24,8 @@ const item = (href: string, label: string) => ({ href, label, icon: Home })
 
 describe('NavLink', () => {
   it('marca aria-current cuando la ruta coincide', () => {
-    render(<NavLink item={item('/deposito', 'Depósito')} />)
-    expect(screen.getByRole('link', { name: 'Depósito' })).toHaveAttribute('aria-current', 'page')
+    render(<NavLink item={item('/categorias', 'Categorías')} />)
+    expect(screen.getByRole('link', { name: 'Categorías' })).toHaveAttribute('aria-current', 'page')
   })
   it('no marca aria-current en otra ruta', () => {
     render(<NavLink item={item('/productos', 'Productos')} />)

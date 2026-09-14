@@ -43,7 +43,7 @@ export function ProductFilters({ categories }: { categories: { value: string; la
 
       {/* < md: filtro colapsable */}
       <details className="md:hidden">
-        <summary className="cursor-pointer select-none py-2">Filtros</summary>
+        <summary className="cursor-pointer select-none min-h-11 flex items-center">Filtros</summary>
         <div className="pt-2">{categorySelect}</div>
       </details>
 

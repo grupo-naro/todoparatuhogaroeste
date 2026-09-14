@@ -56,7 +56,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         ))}
         <T.Viewport
           className="fixed bottom-0 inset-x-0 p-4 flex flex-col gap-2 z-[60]"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
         />
       </T.Provider>
     </Ctx.Provider>

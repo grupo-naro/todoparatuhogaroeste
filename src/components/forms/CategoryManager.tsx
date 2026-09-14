@@ -63,10 +63,10 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
             <span className="flex-1 truncate">{c.name}</span>
             <span className="text-sm text-muted tabular-nums">{c.activeProductCount}</span>
             <span className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" className="min-h-11" onClick={() => setEditing(c)}>
+              <Button variant="ghost" size="sm" onClick={() => setEditing(c)}>
                 Editar
               </Button>
-              <Button variant="ghost" size="sm" className="min-h-11" onClick={() => handleArchive(c.id)}>
+              <Button variant="ghost" size="sm" onClick={() => handleArchive(c.id)}>
                 Archivar
               </Button>
             </span>

@@ -11,7 +11,7 @@ const variants = {
   ghost: 'hover:bg-border/50',
   danger: 'bg-danger text-white hover:opacity-90',
 }
-const sizes = { sm: 'px-2 py-1 text-xs', md: 'px-3 min-h-11 text-sm' }
+const sizes = { sm: 'px-2 min-h-11 text-xs', md: 'px-3 min-h-11 text-sm' }
 
 export const Button = forwardRef<HTMLButtonElement, Props>(
   ({ className, variant = 'primary', size = 'md', ...props }, ref) => (

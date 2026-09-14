@@ -10,14 +10,14 @@ export function NavDrawer({ role }: { role: RoleName }) {
   const [open, setOpen] = useState(false)
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger aria-label="Abrir menú" className="lg:hidden p-2 -ml-2 min-h-11 min-w-11">
+      <Dialog.Trigger aria-label="Abrir menú" className="md:hidden p-2 -ml-2 min-h-11 min-w-11">
         <Menu size={22} />
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40 lg:hidden" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/40 md:hidden" />
         <Dialog.Content
           className="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-card border-r border-border p-3
-                     flex flex-col gap-1 lg:hidden"
+                     flex flex-col gap-1 md:hidden"
           style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="flex items-center justify-between px-1 pb-2">
             <Dialog.Title className="font-semibold">Menú</Dialog.Title>

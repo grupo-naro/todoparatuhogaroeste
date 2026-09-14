@@ -28,6 +28,11 @@ beforeEach(async () => {
 })
 
 describe('addProductImage', () => {
+  it('requiere rol ADMIN', async () => {
+    await addProductImage(productId, fileFormData())
+    expect(vi.mocked((await import('@/server/auth/guards')).requireRole)).toHaveBeenCalledWith('ADMIN')
+  })
+
   it('sube el archivo a Blob y crea la fila con order 0 para la primera foto', async () => {
     const res = await addProductImage(productId, fileFormData())
     expect(res.ok).toBe(true)
@@ -101,6 +106,16 @@ describe('reorderProductImages', () => {
   it('rechaza si la lista de ids no coincide con las imágenes actuales', async () => {
     await addProductImage(productId, fileFormData('a.jpg'))
     const res = await reorderProductImages(productId, ['id-inexistente'])
+    expect(res).toEqual({ ok: false, error: 'La lista de imágenes no coincide con las actuales' })
+  })
+
+  it('rechaza una lista con ids duplicados aunque el tamaño coincida', async () => {
+    await addProductImage(productId, fileFormData('a.jpg'))
+    await addProductImage(productId, fileFormData('b.jpg'))
+    const [first] = await prisma.productImage.findMany({ where: { productId }, orderBy: { order: 'asc' } })
+
+    const res = await reorderProductImages(productId, [first.id, first.id])
+
     expect(res).toEqual({ ok: false, error: 'La lista de imágenes no coincide con las actuales' })
   })
 })

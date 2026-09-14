@@ -20,19 +20,29 @@ export function ProductImageGallery({ productId, images }: { productId: string; 
     e.target.value = ''
     if (!file) return
     setUploading(true)
-    const compressed = await compressImage(file)
-    const formData = new FormData()
-    formData.set('file', compressed)
-    const res = await addProductImage(productId, formData)
-    setUploading(false)
-    if (!res.ok) toast(res.error, 'danger')
+    try {
+      const compressed = await compressImage(file)
+      const formData = new FormData()
+      formData.set('file', compressed)
+      const res = await addProductImage(productId, formData)
+      if (!res.ok) toast(res.error, 'danger')
+    } catch {
+      toast('No se pudo subir la imagen, probá de nuevo', 'danger')
+    } finally {
+      setUploading(false)
+    }
   }
 
   async function handleDelete(id: string) {
     setBusyId(id)
-    const res = await deleteProductImage(id)
-    setBusyId(null)
-    if (!res.ok) toast(res.error, 'danger')
+    try {
+      const res = await deleteProductImage(id)
+      if (!res.ok) toast(res.error, 'danger')
+    } catch {
+      toast('No se pudo borrar la imagen, probá de nuevo', 'danger')
+    } finally {
+      setBusyId(null)
+    }
   }
 
   async function handleMove(id: string, direction: -1 | 1) {
@@ -42,9 +52,14 @@ export function ProductImageGallery({ productId, images }: { productId: string; 
     const order = sorted.map((img) => img.id)
     ;[order[idx], order[swapWith]] = [order[swapWith], order[idx]]
     setBusyId(id)
-    const res = await reorderProductImages(productId, order)
-    setBusyId(null)
-    if (!res.ok) toast(res.error, 'danger')
+    try {
+      const res = await reorderProductImages(productId, order)
+      if (!res.ok) toast(res.error, 'danger')
+    } catch {
+      toast('No se pudo reordenar las imágenes, probá de nuevo', 'danger')
+    } finally {
+      setBusyId(null)
+    }
   }
 
   return (

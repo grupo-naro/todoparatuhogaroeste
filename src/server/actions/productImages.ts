@@ -70,7 +70,9 @@ export async function reorderProductImages(productId: string, orderedImageIds: s
   await requireRole('ADMIN')
   const current = await prisma.productImage.findMany({ where: { productId }, select: { id: true } })
   const currentIds = new Set(current.map((i) => i.id))
-  const matches = orderedImageIds.length === currentIds.size && orderedImageIds.every((id) => currentIds.has(id))
+  const matches = orderedImageIds.length === currentIds.size
+    && new Set(orderedImageIds).size === orderedImageIds.length
+    && orderedImageIds.every((id) => currentIds.has(id))
   if (!matches) return { ok: false, error: 'La lista de imágenes no coincide con las actuales' }
 
   await prisma.$transaction(async (tx) => {

@@ -40,7 +40,7 @@ export async function updateCategory(id: string, formData: FormData): Promise<Ac
 
 export async function archiveCategory(id: string): Promise<ActionResult> {
   await requireRole('ADMIN')
-  const activos = await prisma.product.count({ where: { categoryId: id, archivedAt: null } })
+  const activos = await prisma.product.count({ where: { categoryId: id } })
   if (activos > 0) return { ok: false, error: 'No se puede archivar: tiene productos activos' }
   await prisma.category.update({ where: { id }, data: { archivedAt: new Date() } })
   revalidatePath('/categorias')

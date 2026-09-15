@@ -4,8 +4,10 @@ vi.mock('@/server/auth/guards', () => ({
   requireUser: vi.fn(),
   requireRole: vi.fn().mockResolvedValue({ sub: 'u1', role: 'ADMIN', name: 'A' }),
 }))
+const { del } = vi.hoisted(() => ({ del: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@vercel/blob', () => ({ del }))
 import { prisma, resetDb } from '@/test/db'
-import { createProduct, archiveProduct } from './products'
+import { createProduct, deleteProduct } from './products'
 
 let categoryId: string, userId: string
 beforeEach(async () => {
@@ -13,6 +15,7 @@ beforeEach(async () => {
   userId = (await prisma.user.create({ data: { email: 'a@a.com', name: 'Ana', passwordHash: 'x' } })).id
   vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'Ana', mustChangePassword: false })
   categoryId = (await prisma.category.create({ data: { name: 'Mesas', slug: 'mesas' } })).id
+  del.mockClear()
 })
 
 describe('createProduct', () => {
@@ -94,12 +97,44 @@ describe('createProduct', () => {
   })
 })
 
-describe('archiveProduct', () => {
-  it('archiva el producto y sus variantes', async () => {
+describe('deleteProduct', () => {
+  it('elimina el producto y sus variantes', async () => {
     const { id } = await createProduct({ name: 'Mesa Roble', categoryId }) as { ok: true; id: string }
-    expect(await archiveProduct(id)).toEqual({ ok: true, id })
-    const p = await prisma.product.findUniqueOrThrow({ where: { id }, include: { variants: true } })
-    expect(p.archivedAt).not.toBeNull()
-    expect(p.variants.every((v) => v.archivedAt !== null)).toBe(true)
+    expect(await deleteProduct(id)).toEqual({ ok: true, id })
+    expect(await prisma.product.findUnique({ where: { id } })).toBeNull()
+    expect(await prisma.productVariant.count({ where: { productId: id } })).toBe(0)
+  })
+
+  it('rechaza si alguna variante tiene stock', async () => {
+    const { id } = await createProduct({ name: 'Mesa Roble', categoryId }) as { ok: true; id: string }
+    const v = await prisma.productVariant.findFirstOrThrow({ where: { productId: id } })
+    await prisma.inventoryStock.create({ data: { variantId: v.id, quantity: 5 } })
+    expect(await deleteProduct(id))
+      .toEqual({ ok: false, error: 'El producto tiene variantes con stock o movimientos registrados' })
+    expect(await prisma.product.findUnique({ where: { id } })).not.toBeNull()
+  })
+
+  it('rechaza si alguna variante tiene movimientos', async () => {
+    const { id } = await createProduct({ name: 'Mesa Roble', categoryId }) as { ok: true; id: string }
+    const v = await prisma.productVariant.findFirstOrThrow({ where: { productId: id } })
+    await prisma.inventoryTransaction.create({
+      data: { variantId: v.id, type: 'CARGA_INICIAL', quantityDelta: 0, quantityAfter: 0, userId },
+    })
+    expect(await deleteProduct(id))
+      .toEqual({ ok: false, error: 'El producto tiene variantes con stock o movimientos registrados' })
+  })
+
+  it('borra las fotos del producto en Blob antes de eliminarlo', async () => {
+    const { id } = await createProduct({ name: 'Mesa Roble', categoryId }) as { ok: true; id: string }
+    await prisma.productImage.create({ data: { productId: id, url: 'https://blob.example/a.jpg', pathname: 'a', order: 0 } })
+    await prisma.productImage.create({ data: { productId: id, url: 'https://blob.example/b.jpg', pathname: 'b', order: 1 } })
+    expect(await deleteProduct(id)).toEqual({ ok: true, id })
+    expect(del).toHaveBeenCalledWith(['https://blob.example/a.jpg', 'https://blob.example/b.jpg'])
+  })
+
+  it('sin fotos no llama a del()', async () => {
+    const { id } = await createProduct({ name: 'Mesa Roble', categoryId }) as { ok: true; id: string }
+    await deleteProduct(id)
+    expect(del).not.toHaveBeenCalled()
   })
 })

@@ -9,13 +9,15 @@ import userEvent from '@testing-library/user-event'
 // `createCategory`. `push` doesn't need it: it's only read lazily inside the
 // `useRouter: () => ({ push })` closure, well after the module has finished
 // initializing (see `ProductFilters.test.tsx`, which uses the plain form).
-const { createProduct, createVariant } = vi.hoisted(() => ({
+const { createProduct, createVariant, deleteProduct, deleteVariant } = vi.hoisted(() => ({
   createProduct: vi.fn().mockResolvedValue({ ok: true, id: 'p1' }),
   createVariant: vi.fn().mockResolvedValue({ ok: true, id: 'v1' }),
+  deleteProduct: vi.fn().mockResolvedValue({ ok: true, id: 'p1' }),
+  deleteVariant: vi.fn().mockResolvedValue({ ok: true, id: 'v1' }),
 }))
 const push = vi.fn()
-vi.mock('@/server/actions/products', () => ({ createProduct, updateProduct: vi.fn(), archiveProduct: vi.fn() }))
-vi.mock('@/server/actions/variants', () => ({ createVariant, updateVariant: vi.fn(), archiveVariant: vi.fn() }))
+vi.mock('@/server/actions/products', () => ({ createProduct, updateProduct: vi.fn(), deleteProduct }))
+vi.mock('@/server/actions/variants', () => ({ createVariant, updateVariant: vi.fn(), deleteVariant }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
 vi.mock('@/components/products/ProductImageGallery', () => ({
@@ -115,5 +117,35 @@ describe('ProductForm (edit)', () => {
   it('monta ProductImageGallery con el productId y las imágenes del producto', () => {
     render(<ProductForm mode="edit" product={product} categories={cats} />)
     expect(screen.getByTestId('gallery')).toHaveTextContent('p1:1')
+  })
+
+  it('pide confirmación antes de eliminar el producto, y no elimina si se cancela', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<ProductForm mode="edit" product={product} categories={cats} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar producto' }))
+    expect(deleteProduct).not.toHaveBeenCalled()
+    expect(push).not.toHaveBeenCalled()
+  })
+
+  it('elimina el producto si se confirma, y redirige a /productos', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<ProductForm mode="edit" product={product} categories={cats} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar producto' }))
+    expect(deleteProduct).toHaveBeenCalledWith('p1')
+    expect(push).toHaveBeenCalledWith('/productos')
+  })
+
+  it('pide confirmación antes de eliminar una variante, y no elimina si se cancela', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<ProductForm mode="edit" product={product} categories={cats} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar variante' }))
+    expect(deleteVariant).not.toHaveBeenCalled()
+  })
+
+  it('elimina la variante si se confirma', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<ProductForm mode="edit" product={product} categories={cats} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Eliminar variante' }))
+    expect(deleteVariant).toHaveBeenCalledWith('v1')
   })
 })

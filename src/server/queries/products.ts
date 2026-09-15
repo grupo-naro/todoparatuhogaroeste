@@ -13,7 +13,6 @@ export async function listProducts(params: {
   const pageSize = params.pageSize ?? 25
   const page = Math.max(1, params.page ?? 1)
   const where = {
-    archivedAt: null,
     ...(params.categoryId ? { categoryId: params.categoryId } : {}),
     ...(params.q && params.q.trim()
       ? { name: { contains: params.q.trim(), mode: 'insensitive' as const } }
@@ -24,7 +23,7 @@ export async function listProducts(params: {
       where, orderBy: { name: 'asc' }, skip: (page - 1) * pageSize, take: pageSize,
       include: {
         category: { select: { name: true } },
-        _count: { select: { variants: { where: { archivedAt: null } } } },
+        _count: { select: { variants: true } },
         images: { where: { order: 0 }, select: { url: true }, take: 1 },
       },
     }),
@@ -41,11 +40,11 @@ export async function listProducts(params: {
 }
 
 export async function getProduct(id: string) {
-  return prisma.product.findFirst({
-    where: { id, archivedAt: null },
+  return prisma.product.findUnique({
+    where: { id },
     include: {
       category: { select: { id: true, name: true } },
-      variants: { where: { archivedAt: null }, orderBy: { createdAt: 'asc' }, include: { stock: true } },
+      variants: { orderBy: { createdAt: 'asc' }, include: { stock: true } },
       images: { orderBy: { order: 'asc' } },
     },
   })
@@ -61,7 +60,6 @@ export async function searchProductVariants(q: string, limit = 20): Promise<Vari
   const like = { contains: term, mode: 'insensitive' as const }
   const rows = await prisma.productVariant.findMany({
     where: {
-      archivedAt: null, product: { archivedAt: null },
       OR: [
         { name: like }, { medida: like }, { tela: like }, { color: like },
         { product: { name: like } },

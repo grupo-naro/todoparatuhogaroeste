@@ -2,6 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
+import { del } from '@vercel/blob'
 import { prisma } from '@/server/db'
 import { requireUser } from '@/server/auth/guards'
 import { productSchema } from '@/server/validation/product'
@@ -84,13 +85,25 @@ export async function updateProduct(id: string, input: unknown): Promise<SaveRes
   return { ok: true, id }
 }
 
-export async function archiveProduct(id: string): Promise<SaveResult> {
+export async function deleteProduct(id: string): Promise<SaveResult> {
   await requireUser()
-  const now = new Date()
+  const product = await prisma.product.findUniqueOrThrow({
+    where: { id },
+    include: {
+      variants: { include: { stock: true, _count: { select: { transactions: true } } } },
+      images: true,
+    },
+  })
+  const hasHistory = product.variants.some((v) => (v.stock?.quantity ?? 0) > 0 || v._count.transactions > 0)
+  if (hasHistory) return { ok: false, error: 'El producto tiene variantes con stock o movimientos registrados' }
+
+  if (product.images.length > 0) await del(product.images.map((img) => img.url))
+
   await prisma.$transaction([
-    prisma.productVariant.updateMany({ where: { productId: id, archivedAt: null }, data: { archivedAt: now } }),
-    prisma.product.update({ where: { id }, data: { archivedAt: now } }),
+    prisma.productVariant.deleteMany({ where: { productId: id } }),
+    prisma.product.delete({ where: { id } }),
   ])
   revalidatePath('/productos')
+  revalidatePath('/deposito')
   return { ok: true, id }
 }

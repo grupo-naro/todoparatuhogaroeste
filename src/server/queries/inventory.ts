@@ -16,8 +16,7 @@ export async function listStock(params: {
   const like = term ? { contains: term, mode: 'insensitive' as const } : undefined
   const variants = await prisma.productVariant.findMany({
     where: {
-      archivedAt: null,
-      product: { archivedAt: null, ...(params.categoryId ? { categoryId: params.categoryId } : {}) },
+      product: { ...(params.categoryId ? { categoryId: params.categoryId } : {}) },
       ...(like ? { OR: [{ name: like }, { product: { name: like } }] } : {}),
     },
     include: {

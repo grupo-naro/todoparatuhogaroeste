@@ -4,7 +4,7 @@ vi.mock('@/server/auth/guards', () => ({
   requireUser: vi.fn(),
 }))
 import { prisma, resetDb } from '@/test/db'
-import { createVariant, archiveVariant } from './variants'
+import { createVariant, deleteVariant } from './variants'
 
 let productId: string, userId: string
 beforeEach(async () => {
@@ -52,25 +52,28 @@ describe('createVariant', () => {
   })
 })
 
-describe('archiveVariant', () => {
+describe('deleteVariant', () => {
   it('rechaza si tiene stock', async () => {
     const v = await prisma.productVariant.create({ data: { productId, name: 'V2' } })
     await prisma.inventoryStock.create({ data: { variantId: v.id, quantity: 3 } })
-    expect(await archiveVariant(v.id)).toEqual({ ok: false, error: 'La variante tiene stock' })
+    expect(await deleteVariant(v.id)).toEqual({ ok: false, error: 'La variante tiene stock' })
+    expect(await prisma.productVariant.findUnique({ where: { id: v.id } })).not.toBeNull()
   })
   it('rechaza si tiene movimientos', async () => {
     const v = await prisma.productVariant.create({ data: { productId, name: 'V3' } })
     await prisma.inventoryTransaction.create({
       data: { variantId: v.id, type: 'CARGA_INICIAL', quantityDelta: 0, quantityAfter: 0, userId },
     })
-    expect(await archiveVariant(v.id)).toEqual({ ok: false, error: 'La variante tiene movimientos registrados' })
+    expect(await deleteVariant(v.id)).toEqual({ ok: false, error: 'La variante tiene movimientos registrados' })
+    expect(await prisma.productVariant.findUnique({ where: { id: v.id } })).not.toBeNull()
   })
-  it('rechaza archivar la última variante activa', async () => {
+  it('rechaza eliminar la última variante activa', async () => {
     const only = await prisma.productVariant.findFirstOrThrow({ where: { productId } })
-    expect(await archiveVariant(only.id)).toEqual({ ok: false, error: 'El producto debe tener al menos una variante' })
+    expect(await deleteVariant(only.id)).toEqual({ ok: false, error: 'El producto debe tener al menos una variante' })
   })
-  it('archiva una variante extra sin stock ni movimientos', async () => {
+  it('elimina una variante extra sin stock ni movimientos', async () => {
     const v = await prisma.productVariant.create({ data: { productId, name: 'V4' } })
-    expect(await archiveVariant(v.id)).toMatchObject({ ok: true })
+    expect(await deleteVariant(v.id)).toEqual({ ok: true, id: v.id })
+    expect(await prisma.productVariant.findUnique({ where: { id: v.id } })).toBeNull()
   })
 })

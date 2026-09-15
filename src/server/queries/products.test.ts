@@ -30,10 +30,6 @@ describe('listProducts', () => {
     // the intent (filter by a category with no products → 0 rows) is preserved.
     expect((await listProducts({ categoryId: '00000000-0000-0000-0000-000000000000' })).rows).toHaveLength(0)
   })
-  it('excluye archivados', async () => {
-    await prisma.product.create({ data: { name: 'Viejo', categoryId, archivedAt: new Date() } })
-    expect((await listProducts({})).total).toBe(0)
-  })
   it('expone la portada (order 0) como coverImageUrl, o null si no tiene fotos', async () => {
     const p = await prisma.product.create({ data: { name: 'Sillón Milán', categoryId } })
     await prisma.productImage.create({
@@ -62,15 +58,14 @@ describe('searchProductVariants', () => {
 })
 
 describe('getProduct', () => {
-  it('incluye variantes activas con su stock', async () => {
+  it('incluye las variantes del producto con su stock', async () => {
     const p = await prisma.product.create({
-      data: { name: 'Sillón Test', categoryId,
-        variants: { create: [{ name: 'V1' }, { name: 'V2', archivedAt: new Date() }] } },
+      data: { name: 'Sillón Test', categoryId, variants: { create: [{ name: 'V1' }] } },
     })
     const v1 = await prisma.productVariant.findFirstOrThrow({ where: { name: 'V1' } })
     await prisma.inventoryStock.create({ data: { variantId: v1.id, quantity: 5 } })
     const detail = await getProduct(p.id)
-    expect(detail?.variants).toHaveLength(1) // archived V2 excluded
+    expect(detail?.variants).toHaveLength(1)
     expect(detail?.variants[0]).toMatchObject({ name: 'V1', stock: { quantity: 5 } })
   })
   it('devuelve null para un id inexistente', async () => {

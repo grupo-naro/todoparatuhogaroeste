@@ -1,8 +1,8 @@
 'use client'
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { createProduct, updateProduct, archiveProduct } from '@/server/actions/products'
-import { createVariant, updateVariant, archiveVariant } from '@/server/actions/variants'
+import { createProduct, updateProduct, deleteProduct } from '@/server/actions/products'
+import { createVariant, updateVariant, deleteVariant } from '@/server/actions/variants'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
@@ -92,9 +92,10 @@ export function ProductForm(props: Props) {
     }
   }
 
-  async function handleArchiveProduct() {
+  async function handleDeleteProduct() {
     if (props.mode !== 'edit') return
-    const res = await archiveProduct(props.product.id)
+    if (!window.confirm('¿Seguro que querés eliminar este producto? Esta acción no se puede deshacer.')) return
+    const res = await deleteProduct(props.product.id)
     if (res.ok) router.push('/productos')
     else setError(res.error)
   }
@@ -199,8 +200,8 @@ export function ProductForm(props: Props) {
       )}
 
       {props.mode === 'edit' && (
-        <Button variant="danger" className="w-full md:w-auto" onClick={handleArchiveProduct}>
-          Archivar producto
+        <Button variant="danger" className="w-full md:w-auto" onClick={handleDeleteProduct}>
+          Eliminar producto
         </Button>
       )}
     </div>
@@ -233,8 +234,9 @@ function ExistingVariantRow({ variant }: { variant: ProductDetail['variants'][nu
     if (!res.ok) setError(res.error)
   }
 
-  async function handleArchive() {
-    const res = await archiveVariant(variant.id)
+  async function handleDelete() {
+    if (!window.confirm('¿Seguro que querés eliminar esta variante? Esta acción no se puede deshacer.')) return
+    const res = await deleteVariant(variant.id)
     if (!res.ok) toast(res.error, 'danger')
   }
 
@@ -288,9 +290,9 @@ function ExistingVariantRow({ variant }: { variant: ProductDetail['variants'][nu
           variant="danger"
           size="sm"
           className="w-full md:w-auto"
-          onClick={handleArchive}
+          onClick={handleDelete}
         >
-          Archivar variante
+          Eliminar variante
         </Button>
       </div>
       {error && <p className="text-sm text-danger lg:col-span-6">{error}</p>}

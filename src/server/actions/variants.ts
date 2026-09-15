@@ -87,7 +87,7 @@ export async function updateVariant(id: string, input: unknown): Promise<SaveRes
   }
 }
 
-export async function archiveVariant(id: string): Promise<SaveResult> {
+export async function deleteVariant(id: string): Promise<SaveResult> {
   await requireUser()
   const variant = await prisma.productVariant.findUniqueOrThrow({
     where: { id },
@@ -96,11 +96,9 @@ export async function archiveVariant(id: string): Promise<SaveResult> {
   if ((variant.stock?.quantity ?? 0) > 0) return { ok: false, error: 'La variante tiene stock' }
   if (variant._count.transactions > 0)
     return { ok: false, error: 'La variante tiene movimientos registrados' }
-  const activas = await prisma.productVariant.count({
-    where: { productId: variant.productId, archivedAt: null },
-  })
+  const activas = await prisma.productVariant.count({ where: { productId: variant.productId } })
   if (activas <= 1) return { ok: false, error: 'El producto debe tener al menos una variante' }
-  await prisma.productVariant.update({ where: { id }, data: { archivedAt: new Date() } })
+  await prisma.productVariant.delete({ where: { id } })
   revalidatePath(`/productos/${variant.productId}`)
   return { ok: true, id }
 }

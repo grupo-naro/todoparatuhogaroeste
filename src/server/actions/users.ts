@@ -5,6 +5,7 @@ import { prisma } from '@/server/db'
 import { requireRole } from '@/server/auth/guards'
 import { hashPassword } from '@/server/auth/password'
 import { createUserSchema } from '@/server/validation/user'
+import { ROLES, type RoleName } from '@/lib/constants'
 
 export type ActionResult = { ok: true } | { ok: false; error: string }
 
@@ -48,6 +49,37 @@ export async function resetUserPassword(id: string): Promise<ActionResult> {
     where: { id },
     data: { passwordHash: await hashPassword(user.dni), mustChangePassword: true },
   })
+  revalidatePath('/usuarios')
+  return { ok: true }
+}
+
+// Cuenta los ADMIN activos que quedarían si `id` dejara de ser un ADMIN activo
+// (por cambio de rol o por desactivación) — excluye a `id` del conteo.
+async function activeAdminCountExcluding(id: string): Promise<number> {
+  return prisma.user.count({ where: { role: 'ADMIN', active: true, id: { not: id } } })
+}
+
+export async function updateUserRole(id: string, role: RoleName): Promise<ActionResult> {
+  await requireRole('ADMIN')
+  if (!ROLES.includes(role)) return { ok: false, error: 'Rol inválido' }
+  if (role !== 'ADMIN') {
+    const user = await prisma.user.findUniqueOrThrow({ where: { id } })
+    if (user.role === 'ADMIN' && user.active && (await activeAdminCountExcluding(id)) === 0)
+      return { ok: false, error: 'No se puede quitar el rol de ADMIN: no quedaría ningún administrador activo' }
+  }
+  await prisma.user.update({ where: { id }, data: { role } })
+  revalidatePath('/usuarios')
+  return { ok: true }
+}
+
+export async function setUserActive(id: string, active: boolean): Promise<ActionResult> {
+  await requireRole('ADMIN')
+  if (!active) {
+    const user = await prisma.user.findUniqueOrThrow({ where: { id } })
+    if (user.role === 'ADMIN' && user.active && (await activeAdminCountExcluding(id)) === 0)
+      return { ok: false, error: 'No se puede desactivar: no quedaría ningún administrador activo' }
+  }
+  await prisma.user.update({ where: { id }, data: { active } })
   revalidatePath('/usuarios')
   return { ok: true }
 }

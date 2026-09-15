@@ -1,6 +1,6 @@
 'use client'
 import { useActionState, useEffect, useRef, useState } from 'react'
-import { createUser, resetUserPassword } from '@/server/actions/users'
+import { createUser, resetUserPassword, updateUserRole, setUserActive } from '@/server/actions/users'
 import { ROLES, type RoleName } from '@/lib/constants'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,7 @@ export function UserManager({ users }: { users: UserRow[] }) {
   }, [altaState, toast])
 
   const [resettingId, setResettingId] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   async function handleReset(id: string) {
     setResettingId(id)
@@ -40,6 +41,21 @@ export function UserManager({ users }: { users: UserRow[] }) {
     } finally {
       setResettingId(null)
     }
+  }
+
+  async function handleRoleChange(id: string, role: RoleName) {
+    setBusyId(id)
+    const res = await updateUserRole(id, role)
+    setBusyId(null)
+    if (!res.ok) toast(res.error, 'danger')
+  }
+
+  async function handleToggleActive(id: string, active: boolean) {
+    if (!active && !window.confirm('¿Seguro que querés desactivar a este usuario? No va a poder iniciar sesión.')) return
+    setBusyId(id)
+    const res = await setUserActive(id, active)
+    setBusyId(null)
+    if (!res.ok) toast(res.error, 'danger')
   }
 
   return (
@@ -94,10 +110,28 @@ export function UserManager({ users }: { users: UserRow[] }) {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted">{u.role}</span>
+                <select
+                  aria-label={`Rol (${u.name})`}
+                  value={u.role}
+                  disabled={busyId === u.id}
+                  onChange={(e) => handleRoleChange(u.id, e.target.value as RoleName)}
+                  className="border border-border rounded px-2 min-h-11 text-sm bg-transparent"
+                >
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
                 <span className={`text-sm ${u.active ? 'text-success' : 'text-danger'}`}>
                   {u.active ? 'Activo' : 'Inactivo'}
                 </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busyId === u.id}
+                  onClick={() => handleToggleActive(u.id, !u.active)}
+                >
+                  {u.active ? `Desactivar (${u.name})` : `Reactivar (${u.name})`}
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"

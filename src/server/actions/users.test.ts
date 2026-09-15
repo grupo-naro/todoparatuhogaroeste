@@ -5,7 +5,7 @@ vi.mock('@/server/auth/guards', () => ({
 }))
 import { prisma, resetDb } from '@/test/db'
 import { verifyPassword } from '@/server/auth/password'
-import { createUser, resetUserPassword } from './users'
+import { createUser, resetUserPassword, updateUserRole, setUserActive } from './users'
 import { listUsers } from '@/server/queries/users'
 
 const fd = (fields: Record<string, string>) => {
@@ -81,5 +81,73 @@ describe('resetUserPassword', () => {
     const legacy = await prisma.user.create({ data: { name: 'Legacy', email: 'legacy@a.com', passwordHash: 'x' } })
     const res = await resetUserPassword(legacy.id)
     expect(res).toEqual({ ok: false, error: 'Este usuario no tiene DNI cargado, no se puede resetear la contraseña' })
+  })
+})
+
+describe('updateUserRole', () => {
+  it('cambia el rol de un usuario', async () => {
+    const u = await prisma.user.create({ data: { name: 'Dep', email: 'dep@a.com', passwordHash: 'x', role: 'DEPOSITO' } })
+    expect(await updateUserRole(u.id, 'ADMIN')).toEqual({ ok: true })
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).role).toBe('ADMIN')
+  })
+
+  it('rechaza un rol inválido', async () => {
+    const u = await prisma.user.create({ data: { name: 'X', email: 'x@a.com', passwordHash: 'x' } })
+    expect(await updateUserRole(u.id, 'SUPERADMIN' as never)).toEqual({ ok: false, error: 'Rol inválido' })
+  })
+
+  it('rechaza quitar el rol ADMIN si no quedaría ningún administrador activo', async () => {
+    const admin = await prisma.user.create({
+      data: { name: 'Admin', email: 'admin@a.com', passwordHash: 'x', role: 'ADMIN', active: true },
+    })
+    expect(await updateUserRole(admin.id, 'DEPOSITO'))
+      .toEqual({ ok: false, error: 'No se puede quitar el rol de ADMIN: no quedaría ningún administrador activo' })
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: admin.id } })).role).toBe('ADMIN')
+  })
+
+  it('permite quitar el rol ADMIN si hay otro administrador activo', async () => {
+    const admin1 = await prisma.user.create({
+      data: { name: 'A1', email: 'a1@a.com', passwordHash: 'x', role: 'ADMIN', active: true },
+    })
+    await prisma.user.create({ data: { name: 'A2', email: 'a2@a.com', passwordHash: 'x', role: 'ADMIN', active: true } })
+    expect(await updateUserRole(admin1.id, 'DEPOSITO')).toEqual({ ok: true })
+  })
+
+  it('permite quitar el rol ADMIN a un admin ya inactivo (no cuenta como admin activo)', async () => {
+    const inactiveAdmin = await prisma.user.create({
+      data: { name: 'Inactivo', email: 'inactivo@a.com', passwordHash: 'x', role: 'ADMIN', active: false },
+    })
+    expect(await updateUserRole(inactiveAdmin.id, 'DEPOSITO')).toEqual({ ok: true })
+  })
+})
+
+describe('setUserActive', () => {
+  it('desactiva un usuario', async () => {
+    const u = await prisma.user.create({ data: { name: 'X', email: 'x2@a.com', passwordHash: 'x' } })
+    expect(await setUserActive(u.id, false)).toEqual({ ok: true })
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).active).toBe(false)
+  })
+
+  it('reactiva un usuario', async () => {
+    const u = await prisma.user.create({ data: { name: 'X', email: 'x3@a.com', passwordHash: 'x', active: false } })
+    expect(await setUserActive(u.id, true)).toEqual({ ok: true })
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: u.id } })).active).toBe(true)
+  })
+
+  it('rechaza desactivar si no quedaría ningún administrador activo', async () => {
+    const admin = await prisma.user.create({
+      data: { name: 'Admin', email: 'admin2@a.com', passwordHash: 'x', role: 'ADMIN', active: true },
+    })
+    expect(await setUserActive(admin.id, false))
+      .toEqual({ ok: false, error: 'No se puede desactivar: no quedaría ningún administrador activo' })
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: admin.id } })).active).toBe(true)
+  })
+
+  it('permite desactivar un ADMIN si hay otro administrador activo', async () => {
+    const admin1 = await prisma.user.create({
+      data: { name: 'A1', email: 'a1b@a.com', passwordHash: 'x', role: 'ADMIN', active: true },
+    })
+    await prisma.user.create({ data: { name: 'A2', email: 'a2b@a.com', passwordHash: 'x', role: 'ADMIN', active: true } })
+    expect(await setUserActive(admin1.id, false)).toEqual({ ok: true })
   })
 })

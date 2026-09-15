@@ -2,11 +2,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-const { createUser, resetUserPassword } = vi.hoisted(() => ({
+const { createUser, resetUserPassword, updateUserRole, setUserActive } = vi.hoisted(() => ({
   createUser: vi.fn().mockResolvedValue({ ok: true }),
   resetUserPassword: vi.fn().mockResolvedValue({ ok: true }),
+  updateUserRole: vi.fn().mockResolvedValue({ ok: true }),
+  setUserActive: vi.fn().mockResolvedValue({ ok: true }),
 }))
-vi.mock('@/server/actions/users', () => ({ createUser, resetUserPassword }))
+vi.mock('@/server/actions/users', () => ({ createUser, resetUserPassword, updateUserRole, setUserActive }))
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
 import { UserManager } from './UserManager'
 
@@ -52,5 +54,31 @@ describe('UserManager', () => {
     render(<UserManager users={users} />)
     await userEvent.click(screen.getByRole('button', { name: 'Resetear contraseña (Ana)' }))
     expect(resetUserPassword).toHaveBeenCalledWith('u1')
+  })
+
+  it('cambia el rol al elegir una opción distinta', async () => {
+    render(<UserManager users={users} />)
+    await userEvent.selectOptions(screen.getByLabelText('Rol (Ana)'), 'ADMIN')
+    expect(updateUserRole).toHaveBeenCalledWith('u1', 'ADMIN')
+  })
+
+  it('pide confirmación antes de desactivar, y no desactiva si se cancela', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<UserManager users={users} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Desactivar (Ana)' }))
+    expect(setUserActive).not.toHaveBeenCalled()
+  })
+
+  it('desactiva si se confirma', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    render(<UserManager users={users} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Desactivar (Ana)' }))
+    expect(setUserActive).toHaveBeenCalledWith('u1', false)
+  })
+
+  it('reactiva sin pedir confirmación', async () => {
+    render(<UserManager users={users} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Reactivar (Legacy)' }))
+    expect(setUserActive).toHaveBeenCalledWith('u2', true)
   })
 })

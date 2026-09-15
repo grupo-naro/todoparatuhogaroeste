@@ -1,6 +1,6 @@
 'use client'
 import { useActionState, useEffect, useRef, useState } from 'react'
-import { archiveCategory, createCategory, updateCategory } from '@/server/actions/categories'
+import { deleteCategory, createCategory, updateCategory } from '@/server/actions/categories'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/dialog'
@@ -11,7 +11,6 @@ type Category = {
   name: string
   slug: string
   activeProductCount: number
-  archivedAt: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -39,8 +38,9 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
     setEditing(null)
   }
 
-  async function handleArchive(id: string) {
-    const res = await archiveCategory(id)
+  async function handleDelete(id: string) {
+    if (!window.confirm('¿Seguro que querés eliminar esta categoría? Esta acción no se puede deshacer.')) return
+    const res = await deleteCategory(id)
     if (!res.ok) toast(res.error, 'danger')
   }
 
@@ -66,8 +66,8 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
               <Button variant="ghost" size="sm" onClick={() => setEditing(c)}>
                 Editar
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => handleArchive(c.id)}>
-                Archivar
+              <Button variant="ghost" size="sm" onClick={() => handleDelete(c.id)}>
+                Eliminar
               </Button>
             </span>
           </li>

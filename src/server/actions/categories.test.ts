@@ -5,7 +5,7 @@ vi.mock('@/server/auth/guards', () => ({
   requireRole: vi.fn().mockResolvedValue({ sub: 'u1', role: 'ADMIN', name: 'A' }),
 }))
 import { prisma, resetDb } from '@/test/db'
-import { createCategory, archiveCategory } from './categories'
+import { createCategory, deleteCategory } from './categories'
 import { listCategories } from '@/server/queries/categories'
 
 beforeEach(async () => { await resetDb() })
@@ -23,17 +23,19 @@ describe('createCategory', () => {
   })
 })
 
-describe('archiveCategory', () => {
-  it('rechaza si tiene productos activos', async () => {
+describe('deleteCategory', () => {
+  it('rechaza si tiene productos', async () => {
     await createCategory(undefined, fd('Mesas'))
     const cat = (await listCategories())[0]
     await prisma.product.create({ data: { name: 'Mesa Roble', categoryId: cat.id } })
-    expect(await archiveCategory(cat.id)).toEqual({ ok: false, error: 'No se puede archivar: tiene productos activos' })
+    expect(await deleteCategory(cat.id)).toEqual({ ok: false, error: 'No se puede eliminar: tiene productos' })
+    expect(await prisma.category.findUnique({ where: { id: cat.id } })).not.toBeNull()
   })
-  it('archiva si no tiene productos activos', async () => {
+  it('elimina si no tiene productos', async () => {
     await createCategory(undefined, fd('Mesas'))
     const cat = (await listCategories())[0]
-    expect(await archiveCategory(cat.id)).toEqual({ ok: true })
+    expect(await deleteCategory(cat.id)).toEqual({ ok: true })
+    expect(await prisma.category.findUnique({ where: { id: cat.id } })).toBeNull()
     expect(await listCategories()).toHaveLength(0)
   })
 })

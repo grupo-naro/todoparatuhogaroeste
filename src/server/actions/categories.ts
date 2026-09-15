@@ -38,11 +38,11 @@ export async function updateCategory(id: string, formData: FormData): Promise<Ac
   return { ok: true }
 }
 
-export async function archiveCategory(id: string): Promise<ActionResult> {
+export async function deleteCategory(id: string): Promise<ActionResult> {
   await requireRole('ADMIN')
-  const activos = await prisma.product.count({ where: { categoryId: id } })
-  if (activos > 0) return { ok: false, error: 'No se puede archivar: tiene productos activos' }
-  await prisma.category.update({ where: { id }, data: { archivedAt: new Date() } })
+  const cantidad = await prisma.product.count({ where: { categoryId: id } })
+  if (cantidad > 0) return { ok: false, error: 'No se puede eliminar: tiene productos' }
+  await prisma.category.delete({ where: { id } })
   revalidatePath('/categorias')
   return { ok: true }
 }

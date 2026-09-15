@@ -3,7 +3,6 @@ import { prisma } from '@/server/db'
 
 export async function listCategories() {
   const rows = await prisma.category.findMany({
-    where: { archivedAt: null },
     orderBy: { name: 'asc' },
     include: { _count: { select: { products: true } } },
   })
@@ -11,6 +10,6 @@ export async function listCategories() {
 }
 
 export async function listCategoryOptions() {
-  const rows = await prisma.category.findMany({ where: { archivedAt: null }, orderBy: { name: 'asc' } })
+  const rows = await prisma.category.findMany({ orderBy: { name: 'asc' } })
   return rows.map((c) => ({ value: c.id, label: c.name }))
 }

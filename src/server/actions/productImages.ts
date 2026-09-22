@@ -32,7 +32,8 @@ export async function addProductImage(productId: string, formData: FormData): Pr
   let blob: { url: string; pathname: string }
   try {
     blob = await put(`products/${productId}/${randomUUID()}.${ext}`, file, { access: 'public' })
-  } catch {
+  } catch (err) {
+    console.error('addProductImage: put() falló', err)
     return { ok: false, error: 'No se pudo subir la imagen, probá de nuevo' }
   }
 

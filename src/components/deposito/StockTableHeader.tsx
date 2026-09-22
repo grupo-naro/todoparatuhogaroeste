@@ -20,16 +20,16 @@ export function StockTableHeader({ sort, dir }: { sort?: SortKey; dir?: Dir }) {
 
   return (
     <Tr>
-      <Th sortable sorted={sort === 'producto' ? dir : false} onSort={() => handleSort('producto')}>
+      <Th sortable sorted={sort === 'producto' ? (dir ?? 'asc') : false} onSort={() => handleSort('producto')}>
         Producto
       </Th>
       <Th>Variante</Th>
       <Th>Categoría</Th>
-      <Th className="text-right" sortable sorted={sort === 'stock' ? dir : false} onSort={() => handleSort('stock')}>
+      <Th className="text-right" sortable sorted={sort === 'stock' ? (dir ?? 'asc') : false} onSort={() => handleSort('stock')}>
         Stock
       </Th>
       <Th className="text-right">Costo unit.</Th>
-      <Th className="text-right" sortable sorted={sort === 'precio' ? dir : false} onSort={() => handleSort('precio')}>
+      <Th className="text-right" sortable sorted={sort === 'precio' ? (dir ?? 'asc') : false} onSort={() => handleSort('precio')}>
         Precio venta
       </Th>
       <Th><span className="sr-only">Acción</span></Th>

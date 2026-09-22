@@ -20,6 +20,7 @@ export function StockFilters({ categories }: { categories: { value: string; labe
   const [q, setQ] = useState(searchParams.get('q') ?? '')
   const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') ?? '')
   const [status, setStatus] = useState<Status>((searchParams.get('status') as Status) ?? 'todos')
+  const [showFilters, setShowFilters] = useState(false)
 
   // Refs para que el push debounceado de "q" siempre use los últimos valores de
   // categoría/estado, aunque el efecto no se vuelva a programar por esos cambios.
@@ -32,15 +33,32 @@ export function StockFilters({ categories }: { categories: { value: string; labe
     statusRef.current = status
   }, [status])
 
+  // Ref con los searchParams actuales para que pushParams preserve params
+  // ajenos a este componente (p. ej. sort/dir) en lugar de partir de cero.
+  const searchParamsRef = useRef(searchParams)
+  useEffect(() => {
+    searchParamsRef.current = searchParams
+  }, [searchParams])
+
   function pushParams(next: { q: string; categoryId: string; status: Status }) {
-    const params = new URLSearchParams()
+    const params = new URLSearchParams(searchParamsRef.current.toString())
     if (next.q) params.set('q', next.q)
+    else params.delete('q')
     if (next.categoryId) params.set('categoryId', next.categoryId)
+    else params.delete('categoryId')
     if (next.status !== 'todos') params.set('status', next.status)
+    else params.delete('status')
     router.push(`${pathname}?${params.toString()}`)
   }
 
+  // Evita que el efecto debounceado dispare un push espurio al montar (lo que
+  // pisaría params existentes como sort/dir con un push idéntico pero innecesario).
+  const isFirstRun = useRef(true)
   useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false
+      return
+    }
     const timeout = setTimeout(() => {
       pushParams({ q, categoryId: categoryIdRef.current, status: statusRef.current })
     }, 300)
@@ -90,14 +108,21 @@ export function StockFilters({ categories }: { categories: { value: string; labe
         className="w-full"
       />
 
-      {/* Instancia única: colapsable en < md (nativo, "Filtros"); en ≥ md se
-          fuerza visible vía CSS (md:!block) sin duplicar los controles en el DOM. */}
-      <details>
-        <summary className="cursor-pointer select-none min-h-11 flex items-center md:hidden">
-          Filtros
-        </summary>
-        <div className="pt-2 md:pt-0 md:block!">{filterControls}</div>
-      </details>
+      {/* Instancia única: colapsable en < md vía estado de React (el toggle
+          nativo <details> no puede revelarse desde un descendiente cuando el
+          UA lo colapsa con content-visibility: hidden); en ≥ md siempre visible. */}
+      <button
+        type="button"
+        className="md:hidden min-h-11 flex items-center gap-1"
+        aria-expanded={showFilters}
+        aria-controls="stock-filtros"
+        onClick={() => setShowFilters((v) => !v)}
+      >
+        Filtros
+      </button>
+      <div id="stock-filtros" className={`${showFilters ? 'block' : 'hidden'} md:block pt-2 md:pt-0`}>
+        {filterControls}
+      </div>
     </div>
   )
 }

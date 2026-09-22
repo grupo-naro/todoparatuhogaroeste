@@ -1,4 +1,4 @@
-import { Package, Tags, Users, type LucideIcon } from 'lucide-react'
+import { Package, Tags, Users, Warehouse, type LucideIcon } from 'lucide-react'
 import type { RoleName } from '@/lib/constants'
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; adminOnly?: boolean }
@@ -8,6 +8,7 @@ export type NavItem = { href: string; label: string; icon: LucideIcon; adminOnly
 const ALL: NavItem[] = [
   { href: '/productos', label: 'Productos', icon: Package },
   { href: '/categorias', label: 'Categorías', icon: Tags },
+  { href: '/deposito', label: 'Depósito', icon: Warehouse },
   { href: '/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
 ]
 

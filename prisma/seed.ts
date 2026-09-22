@@ -1,6 +1,8 @@
 import './load-env.ts'
-import { PrismaClient } from '@prisma/client'
+import prismaClientPkg from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+
+const { PrismaClient } = prismaClientPkg
 import bcrypt from 'bcryptjs'
 import { slugify } from '../src/lib/format.ts'
 

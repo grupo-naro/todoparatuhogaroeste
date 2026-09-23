@@ -6,7 +6,7 @@ vi.mock('@/server/auth/guards', () => ({
 const { del } = vi.hoisted(() => ({ del: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@vercel/blob', () => ({ del }))
 import { prisma, resetDb } from '@/test/db'
-import { createProduct, deleteProduct } from './products'
+import { createProduct, deleteProduct, updateProduct } from './products'
 import { requireRole } from '@/server/auth/guards'
 
 let categoryId: string, userId: string
@@ -101,6 +101,22 @@ describe('createProduct', () => {
   })
 })
 
+describe('updateProduct', () => {
+  it('actualiza el producto', async () => {
+    const { id } = await createProduct({ name: 'Mesa Roble', categoryId }) as { ok: true; id: string }
+    const res = await updateProduct(id, { name: 'Mesa Roble Actualizada', categoryId })
+    expect(res.ok).toBe(true)
+    const p = await prisma.product.findUniqueOrThrow({ where: { id } })
+    expect(p.name).toBe('Mesa Roble Actualizada')
+  })
+  it('exige rol ADMIN o DEPOSITO', async () => {
+    const { id } = await createProduct({ name: 'Mesa Roble', categoryId }) as { ok: true; id: string }
+    vi.mocked(requireRole).mockClear()
+    await updateProduct(id, { name: 'Mesa Actualizada', categoryId })
+    expect(requireRole).toHaveBeenCalledWith(['ADMIN', 'DEPOSITO'])
+  })
+})
+
 describe('deleteProduct', () => {
   it('elimina el producto y sus variantes', async () => {
     const { id } = await createProduct({ name: 'Mesa Roble', categoryId }) as { ok: true; id: string }
@@ -140,5 +156,12 @@ describe('deleteProduct', () => {
     const { id } = await createProduct({ name: 'Mesa Roble', categoryId }) as { ok: true; id: string }
     await deleteProduct(id)
     expect(del).not.toHaveBeenCalled()
+  })
+
+  it('exige rol ADMIN o DEPOSITO', async () => {
+    const { id } = await createProduct({ name: 'Mesa Roble', categoryId }) as { ok: true; id: string }
+    vi.mocked(requireRole).mockClear()
+    await deleteProduct(id)
+    expect(requireRole).toHaveBeenCalledWith(['ADMIN', 'DEPOSITO'])
   })
 })

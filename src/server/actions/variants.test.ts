@@ -4,7 +4,7 @@ vi.mock('@/server/auth/guards', () => ({
   requireRole: vi.fn().mockResolvedValue({ sub: 'u1', role: 'ADMIN', name: 'A' }),
 }))
 import { prisma, resetDb } from '@/test/db'
-import { createVariant, deleteVariant } from './variants'
+import { createVariant, deleteVariant, updateVariant } from './variants'
 import { requireRole } from '@/server/auth/guards'
 
 let productId: string, userId: string
@@ -57,6 +57,23 @@ describe('createVariant', () => {
   })
 })
 
+describe('updateVariant', () => {
+  it('actualiza la variante', async () => {
+    const v = await prisma.productVariant.create({ data: { productId, name: 'Variante Original' } })
+    const res = await updateVariant(v.id, { color: 'Rojo', medida: '1.4m' })
+    expect(res.ok).toBe(true)
+    const updated = await prisma.productVariant.findUniqueOrThrow({ where: { id: v.id } })
+    expect(updated.color).toBe('Rojo')
+    expect(updated.medida).toBe('1.4m')
+  })
+  it('exige rol ADMIN o DEPOSITO', async () => {
+    const v = await prisma.productVariant.create({ data: { productId, name: 'Variante' } })
+    vi.mocked(requireRole).mockClear()
+    await updateVariant(v.id, { color: 'Azul' })
+    expect(requireRole).toHaveBeenCalledWith(['ADMIN', 'DEPOSITO'])
+  })
+})
+
 describe('deleteVariant', () => {
   it('rechaza si tiene stock', async () => {
     const v = await prisma.productVariant.create({ data: { productId, name: 'V2' } })
@@ -80,5 +97,11 @@ describe('deleteVariant', () => {
     const v = await prisma.productVariant.create({ data: { productId, name: 'V4' } })
     expect(await deleteVariant(v.id)).toEqual({ ok: true, id: v.id })
     expect(await prisma.productVariant.findUnique({ where: { id: v.id } })).toBeNull()
+  })
+  it('exige rol ADMIN o DEPOSITO', async () => {
+    const v = await prisma.productVariant.create({ data: { productId, name: 'V5' } })
+    vi.mocked(requireRole).mockClear()
+    await deleteVariant(v.id)
+    expect(requireRole).toHaveBeenCalledWith(['ADMIN', 'DEPOSITO'])
   })
 })

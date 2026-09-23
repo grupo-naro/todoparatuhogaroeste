@@ -1,17 +1,19 @@
-import { Package, Tags, Users, Warehouse, type LucideIcon } from 'lucide-react'
+import { Package, Tags, Users, Warehouse, ShoppingCart, type LucideIcon } from 'lucide-react'
 import type { RoleName } from '@/lib/constants'
 
-export type NavItem = { href: string; label: string; icon: LucideIcon; adminOnly?: boolean }
+export type NavItem = { href: string; label: string; icon: LucideIcon; roles?: RoleName[] }
 
 // Agregá acá cada página nueva a medida que se construye — esta lista maneja
-// tanto el Sidebar de escritorio como el NavDrawer mobile.
+// tanto el Sidebar de escritorio como el NavDrawer mobile. Sin `roles`, el
+// ítem es visible para cualquier usuario autenticado.
 const ALL: NavItem[] = [
   { href: '/productos', label: 'Productos', icon: Package },
   { href: '/categorias', label: 'Categorías', icon: Tags },
   { href: '/deposito', label: 'Depósito', icon: Warehouse },
-  { href: '/usuarios', label: 'Usuarios', icon: Users, adminOnly: true },
+  { href: '/ventas', label: 'Ventas', icon: ShoppingCart, roles: ['ADMIN', 'VENDEDOR'] },
+  { href: '/usuarios', label: 'Usuarios', icon: Users, roles: ['ADMIN'] },
 ]
 
 export function navItemsFor(role: RoleName): NavItem[] {
-  return ALL.filter((i) => !i.adminOnly || role === 'ADMIN')
+  return ALL.filter((i) => !i.roles || i.roles.includes(role))
 }

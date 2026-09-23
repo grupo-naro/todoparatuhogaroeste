@@ -10,9 +10,10 @@ export async function requireUser(): Promise<SessionPayload> {
   return session
 }
 
-export async function requireRole(role: RoleName): Promise<SessionPayload> {
+export async function requireRole(role: RoleName | RoleName[]): Promise<SessionPayload> {
   const session = await requireUser()
-  if (session.role !== role) redirect('/productos')
+  const allowed = Array.isArray(role) ? role : [role]
+  if (!allowed.includes(session.role)) redirect('/productos')
   return session
 }
 

@@ -43,6 +43,14 @@ describe('requireRole', () => {
     vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'ADMIN', name: 'Ana', mustChangePassword: false })
     await expect(requireRole('ADMIN')).resolves.toMatchObject({ role: 'ADMIN' })
   })
+  it('acepta un array de roles y redirige si ninguno coincide', async () => {
+    vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'DEPOSITO', name: 'Ana', mustChangePassword: false })
+    await expect(requireRole(['ADMIN', 'VENDEDOR'])).rejects.toThrow('REDIRECT:/productos')
+  })
+  it('acepta un array de roles y devuelve la sesión si alguno coincide', async () => {
+    vi.mocked(readSession).mockResolvedValue({ sub: 'u1', role: 'VENDEDOR', name: 'Ana', mustChangePassword: false })
+    await expect(requireRole(['ADMIN', 'VENDEDOR'])).resolves.toMatchObject({ role: 'VENDEDOR' })
+  })
 })
 
 describe('requireUserAllowingPasswordChange', () => {

@@ -11,6 +11,9 @@ const { createSale, searchSellableVariantsAction } = vi.hoisted(() => ({
 }))
 vi.mock('@/server/actions/sales', () => ({ createSale, searchSellableVariantsAction }))
 
+const { findCustomerByPhoneAction } = vi.hoisted(() => ({ findCustomerByPhoneAction: vi.fn() }))
+vi.mock('@/server/actions/customers', () => ({ findCustomerByPhoneAction }))
+
 import { SaleCart } from './SaleCart'
 
 const variant = { variantId: 'v1', productName: 'Sillón Milán', variantName: '2 cuerpos', categoryName: 'Sillones', quantity: 5, unitPrice: 300 }
@@ -73,5 +76,51 @@ describe('SaleCart', () => {
   it('el botón Confirmar venta está deshabilitado con el carrito vacío', () => {
     render(<SaleCart />)
     expect(screen.getByRole('button', { name: 'Confirmar venta' })).toBeDisabled()
+  })
+})
+
+describe('SaleCart — cliente', () => {
+  it('teléfono que matchea un cliente existente autocompleta el nombre, de solo lectura', async () => {
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    findCustomerByPhoneAction.mockResolvedValue({ id: 'c1', name: 'Ana Gómez', phone: '1123456789' })
+    createSale.mockResolvedValue({ ok: true, saleId: 's1', number: 7 })
+    render(<SaleCart />)
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.type(screen.getByLabelText('Teléfono del cliente (opcional)'), '1123456789')
+    expect(await screen.findByText(/Ana Gómez/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Nombre del cliente')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar venta' }))
+    expect(createSale).toHaveBeenCalledWith({
+      items: [{ variantId: 'v1', quantity: 1 }], paymentMethod: 'EFECTIVO',
+      customerPhone: '1123456789', customerName: '',
+    })
+  })
+
+  it('teléfono nuevo habilita el campo de nombre y lo manda al confirmar', async () => {
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    findCustomerByPhoneAction.mockResolvedValue(null)
+    createSale.mockResolvedValue({ ok: true, saleId: 's1', number: 7 })
+    render(<SaleCart />)
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.type(screen.getByLabelText('Teléfono del cliente (opcional)'), '1123456789')
+    const nameInput = await screen.findByLabelText('Nombre del cliente')
+    await userEvent.type(nameInput, 'Bruno Díaz')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar venta' }))
+    expect(createSale).toHaveBeenCalledWith({
+      items: [{ variantId: 'v1', quantity: 1 }], paymentMethod: 'EFECTIVO',
+      customerPhone: '1123456789', customerName: 'Bruno Díaz',
+    })
+  })
+
+  it('sin teléfono, confirmar no manda customerPhone ni customerName', async () => {
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    createSale.mockResolvedValue({ ok: true, saleId: 's1', number: 7 })
+    render(<SaleCart />)
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar venta' }))
+    expect(createSale).toHaveBeenCalledWith({ items: [{ variantId: 'v1', quantity: 1 }], paymentMethod: 'EFECTIVO' })
   })
 })

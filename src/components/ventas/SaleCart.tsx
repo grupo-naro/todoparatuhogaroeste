@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSale, searchSellableVariantsAction } from '@/server/actions/sales'
+import { findCustomerByPhoneAction } from '@/server/actions/customers'
 import type { SellableVariant } from '@/server/queries/sales'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,11 +24,22 @@ export function SaleCart() {
   const [paymentMethod, setPaymentMethod] = useState('EFECTIVO')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [customerName, setCustomerName] = useState('')
+  const [foundCustomer, setFoundCustomer] = useState<{ id: string; name: string; phone: string } | null>(null)
 
   async function handleSearch(value: string) {
     setQ(value)
     if (value.trim().length < 2) { setResults([]); return }
     setResults(await searchSellableVariantsAction(value))
+  }
+
+  async function handlePhoneChange(value: string) {
+    setCustomerPhone(value)
+    setCustomerName('')
+    const digits = value.replace(/\D/g, '')
+    if (digits.length < 6) { setFoundCustomer(null); return }
+    setFoundCustomer(await findCustomerByPhoneAction(value))
   }
 
   function addToCart(v: SellableVariant) {
@@ -59,7 +71,10 @@ export function SaleCart() {
     setError(null)
     setPending(true)
     const items = cart.map((l) => ({ variantId: l.variantId, quantity: Number(l.quantity) || 0 }))
-    const res = await createSale({ items, paymentMethod })
+    const res = await createSale({
+      items, paymentMethod,
+      ...(customerPhone.trim() ? { customerPhone, customerName } : {}),
+    })
     setPending(false)
     if (!res.ok) {
       setError(res.error)
@@ -111,6 +126,24 @@ export function SaleCart() {
         <span className="font-medium">Total</span>
         <span className="text-lg font-semibold">{money(total)}</span>
       </div>
+
+      <label className="flex flex-col gap-1">
+        <span className="text-sm">Teléfono del cliente (opcional)</span>
+        <Input aria-label="Teléfono del cliente (opcional)" inputMode="tel" value={customerPhone}
+          onChange={(e) => handlePhoneChange(e.target.value)} />
+      </label>
+
+      {customerPhone.replace(/\D/g, '').length >= 6 && (
+        foundCustomer ? (
+          <p className="text-sm text-muted">Cliente: <strong>{foundCustomer.name}</strong></p>
+        ) : (
+          <label className="flex flex-col gap-1">
+            <span className="text-sm">Nombre del cliente</span>
+            <Input aria-label="Nombre del cliente" value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)} />
+          </label>
+        )
+      )}
 
       <label className="flex flex-col gap-1">
         <span className="text-sm">Método de pago</span>

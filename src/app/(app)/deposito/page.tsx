@@ -1,3 +1,4 @@
+import { requireRole } from '@/server/auth/guards'
 import { listStock } from '@/server/queries/inventory'
 import { listCategoryOptions } from '@/server/queries/categories'
 import { StockFilters } from '@/components/deposito/StockFilters'
@@ -9,6 +10,7 @@ type SP = {
 }
 
 export default async function DepositoPage({ searchParams }: { searchParams: Promise<SP> }) {
+  await requireRole(['ADMIN', 'DEPOSITO'])
   const sp = await searchParams
   const [{ rows, totalVariants, totalUnits }, categories] = await Promise.all([
     listStock(sp),

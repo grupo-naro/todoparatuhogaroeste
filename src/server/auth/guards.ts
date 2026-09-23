@@ -13,7 +13,7 @@ export async function requireUser(): Promise<SessionPayload> {
 export async function requireRole(role: RoleName | RoleName[]): Promise<SessionPayload> {
   const session = await requireUser()
   const allowed = Array.isArray(role) ? role : [role]
-  if (!allowed.includes(session.role)) redirect('/productos')
+  if (!allowed.includes(session.role)) redirect(session.role === 'VENDEDOR' ? '/ventas' : '/productos')
   return session
 }
 

@@ -1,19 +1,19 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest'
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/server/auth/guards', () => ({
-  requireUser: vi.fn(),
   requireRole: vi.fn().mockResolvedValue({ sub: 'u1', role: 'ADMIN', name: 'A' }),
 }))
 const { del } = vi.hoisted(() => ({ del: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@vercel/blob', () => ({ del }))
 import { prisma, resetDb } from '@/test/db'
 import { createProduct, deleteProduct } from './products'
+import { requireRole } from '@/server/auth/guards'
 
 let categoryId: string, userId: string
 beforeEach(async () => {
   await resetDb()
   userId = (await prisma.user.create({ data: { email: 'a@a.com', name: 'Ana', passwordHash: 'x' } })).id
-  vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'Ana', mustChangePassword: false })
+  vi.mocked(requireRole).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'Ana', mustChangePassword: false })
   categoryId = (await prisma.category.create({ data: { name: 'Mesas', slug: 'mesas' } })).id
   del.mockClear()
 })
@@ -94,6 +94,10 @@ describe('createProduct', () => {
     // (and no partial Product without its variant) from the failed second call.
     expect(await prisma.product.count()).toBe(1)
     expect(await prisma.productVariant.count()).toBe(1)
+  })
+  it('exige rol ADMIN o DEPOSITO', async () => {
+    await createProduct({ name: 'Mesa Roble', categoryId })
+    expect(requireRole).toHaveBeenCalledWith(['ADMIN', 'DEPOSITO'])
   })
 })
 

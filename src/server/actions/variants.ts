@@ -2,7 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/server/db'
-import { requireUser } from '@/server/auth/guards'
+import { requireRole } from '@/server/auth/guards'
 import { variantSchema } from '@/server/validation/variant'
 import { variantDisplayName } from '@/lib/pricing'
 import type { SaveResult } from './products'
@@ -21,7 +21,7 @@ function variantP2002(e: unknown): SaveResult | null {
 }
 
 export async function createVariant(productId: string, input: unknown): Promise<SaveResult> {
-  const session = await requireUser()
+  const session = await requireRole(['ADMIN', 'DEPOSITO'])
   const parsed = variantSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   const v = parsed.data
@@ -61,7 +61,7 @@ export async function createVariant(productId: string, input: unknown): Promise<
 }
 
 export async function updateVariant(id: string, input: unknown): Promise<SaveResult> {
-  await requireUser()
+  await requireRole(['ADMIN', 'DEPOSITO'])
   const parsed = variantSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   const v = parsed.data
@@ -88,7 +88,7 @@ export async function updateVariant(id: string, input: unknown): Promise<SaveRes
 }
 
 export async function deleteVariant(id: string): Promise<SaveResult> {
-  await requireUser()
+  await requireRole(['ADMIN', 'DEPOSITO'])
   const variant = await prisma.productVariant.findUniqueOrThrow({
     where: { id },
     include: { stock: true, _count: { select: { transactions: true } } },

@@ -1,16 +1,17 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest'
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/server/auth/guards', () => ({
-  requireUser: vi.fn().mockResolvedValue({ sub: 'USER_ID', role: 'DEPOSITO', name: 'Ana' }),
+  requireRole: vi.fn().mockResolvedValue({ sub: 'USER_ID', role: 'DEPOSITO', name: 'Ana' }),
 }))
 import { prisma, resetDb } from '@/test/db'
 import { adjustStock } from './inventory'
+import { requireRole } from '@/server/auth/guards'
 
 let v1: string
 beforeEach(async () => {
   await resetDb()
   const userId = (await prisma.user.create({ data: { email: 'a@a.com', name: 'Ana', passwordHash: 'x' } })).id
-  vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'Ana', mustChangePassword: false })
+  vi.mocked(requireRole).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'Ana', mustChangePassword: false })
   const c = await prisma.category.create({ data: { name: 'Mesas', slug: 'mesas' } })
   const p = await prisma.product.create({
     data: { name: 'Mesa', categoryId: c.id, variants: { create: [{ name: 'A' }] } },
@@ -52,5 +53,9 @@ describe('adjustStock', () => {
   it('modo delta: rechaza delta cero', async () => {
     expect(await adjustStock({ variantId: v1, mode: 'delta', delta: 0, note: 'x' }))
       .toEqual({ ok: false, error: 'Ingresá una cantidad distinta de cero' })
+  })
+  it('exige rol ADMIN o DEPOSITO', async () => {
+    await adjustStock({ variantId: v1, mode: 'delta', delta: 1, note: 'x' })
+    expect(requireRole).toHaveBeenCalledWith(['ADMIN', 'DEPOSITO'])
   })
 })

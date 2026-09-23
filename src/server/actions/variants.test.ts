@@ -1,16 +1,17 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest'
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/server/auth/guards', () => ({
-  requireUser: vi.fn(),
+  requireRole: vi.fn().mockResolvedValue({ sub: 'u1', role: 'ADMIN', name: 'A' }),
 }))
 import { prisma, resetDb } from '@/test/db'
 import { createVariant, deleteVariant } from './variants'
+import { requireRole } from '@/server/auth/guards'
 
 let productId: string, userId: string
 beforeEach(async () => {
   await resetDb()
   userId = (await prisma.user.create({ data: { email: 'u@u.com', name: 'U', passwordHash: 'x' } })).id
-  vi.mocked((await import('@/server/auth/guards')).requireUser).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'U', mustChangePassword: false })
+  vi.mocked(requireRole).mockResolvedValue({ sub: userId, role: 'DEPOSITO', name: 'U', mustChangePassword: false })
   const c = await prisma.category.create({ data: { name: 'Mesas', slug: 'mesas' } })
   const p = await prisma.product.create({
     data: { name: 'Mesa', categoryId: c.id, variants: { create: [{ name: 'Única', isDefault: true }] } },
@@ -49,6 +50,10 @@ describe('createVariant', () => {
     const res = await createVariant(productId, { color: 'Verde' })
     const id = (res as { ok: true; id: string }).id
     expect(await prisma.inventoryStock.findUnique({ where: { variantId: id } })).toBeNull()
+  })
+  it('exige rol ADMIN o DEPOSITO', async () => {
+    await createVariant(productId, { color: 'Negro' })
+    expect(requireRole).toHaveBeenCalledWith(['ADMIN', 'DEPOSITO'])
   })
 })
 

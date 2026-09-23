@@ -1,7 +1,9 @@
+import { requireRole } from '@/server/auth/guards'
 import { listCategories } from '@/server/queries/categories'
 import { CategoryManager } from '@/components/forms/CategoryManager'
 
 export default async function CategoriasPage() {
+  await requireRole(['ADMIN', 'DEPOSITO'])
   const categories = await listCategories()
   return (
     <section className="max-w-2xl">

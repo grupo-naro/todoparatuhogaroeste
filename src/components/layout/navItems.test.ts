@@ -17,4 +17,22 @@ describe('navItemsFor', () => {
     expect(labels).not.toContain('Ventas')
     expect(labels).not.toContain('Usuarios')
   })
+  it('ADMIN ve Productos, Categorías y Depósito', () => {
+    const labels = navItemsFor('ADMIN').map((i) => i.label)
+    expect(labels).toContain('Productos')
+    expect(labels).toContain('Categorías')
+    expect(labels).toContain('Depósito')
+  })
+  it('DEPOSITO ve Productos, Categorías y Depósito', () => {
+    const labels = navItemsFor('DEPOSITO').map((i) => i.label)
+    expect(labels).toContain('Productos')
+    expect(labels).toContain('Categorías')
+    expect(labels).toContain('Depósito')
+  })
+  it('VENDEDOR no ve Productos, Categorías ni Depósito', () => {
+    const labels = navItemsFor('VENDEDOR').map((i) => i.label)
+    expect(labels).not.toContain('Productos')
+    expect(labels).not.toContain('Categorías')
+    expect(labels).not.toContain('Depósito')
+  })
 })

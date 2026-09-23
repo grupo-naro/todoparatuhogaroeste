@@ -1,10 +1,12 @@
 import { notFound } from 'next/navigation'
+import { requireRole } from '@/server/auth/guards'
 import { getProduct } from '@/server/queries/products'
 import { listCategoryOptions } from '@/server/queries/categories'
 import { ProductForm } from '@/components/forms/ProductForm'
 import { toNumber } from '@/lib/pricing'
 
 export default async function EditarProductoPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireRole(['ADMIN', 'DEPOSITO'])
   const { id } = await params
   const [product, categories] = await Promise.all([getProduct(id), listCategoryOptions()])
   if (!product) notFound()

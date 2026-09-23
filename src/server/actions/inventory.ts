@@ -1,11 +1,11 @@
 'use server'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/server/db'
-import { requireUser } from '@/server/auth/guards'
+import { requireRole } from '@/server/auth/guards'
 import { adjustSchema } from '@/server/validation/inventory'
 
 export async function adjustStock(input: unknown) {
-  const session = await requireUser()
+  const session = await requireRole(['ADMIN', 'DEPOSITO'])
   const parsed = adjustSchema.safeParse(input)
   if (!parsed.success) return { ok: false as const, error: parsed.error.issues[0].message }
   const { variantId, mode, note } = parsed.data

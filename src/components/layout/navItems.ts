@@ -7,9 +7,9 @@ export type NavItem = { href: string; label: string; icon: LucideIcon; roles?: R
 // tanto el Sidebar de escritorio como el NavDrawer mobile. Sin `roles`, el
 // ítem es visible para cualquier usuario autenticado.
 const ALL: NavItem[] = [
-  { href: '/productos', label: 'Productos', icon: Package },
-  { href: '/categorias', label: 'Categorías', icon: Tags },
-  { href: '/deposito', label: 'Depósito', icon: Warehouse },
+  { href: '/productos', label: 'Productos', icon: Package, roles: ['ADMIN', 'DEPOSITO'] },
+  { href: '/categorias', label: 'Categorías', icon: Tags, roles: ['ADMIN', 'DEPOSITO'] },
+  { href: '/deposito', label: 'Depósito', icon: Warehouse, roles: ['ADMIN', 'DEPOSITO'] },
   { href: '/ventas', label: 'Ventas', icon: ShoppingCart, roles: ['ADMIN', 'VENDEDOR'] },
   { href: '/usuarios', label: 'Usuarios', icon: Users, roles: ['ADMIN'] },
 ]

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { requireRole } from '@/server/auth/guards'
 import { listProducts } from '@/server/queries/products'
 import { listCategoryOptions } from '@/server/queries/categories'
 import { ProductFilters } from '@/components/products/ProductFilters'
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button'
 export default async function ProductosPage({
   searchParams,
 }: { searchParams: Promise<{ q?: string; categoryId?: string; page?: string }> }) {
+  await requireRole(['ADMIN', 'DEPOSITO'])
   const sp = await searchParams
   const page = Number(sp.page ?? '1') || 1
   const [{ rows, total }, categories] = await Promise.all([

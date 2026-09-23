@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { del } from '@vercel/blob'
 import { prisma } from '@/server/db'
-import { requireUser } from '@/server/auth/guards'
+import { requireRole } from '@/server/auth/guards'
 import { productSchema } from '@/server/validation/product'
 import { variantSchema } from '@/server/validation/variant'
 import { variantDisplayName } from '@/lib/pricing'
@@ -14,7 +14,7 @@ export type SaveResult = { ok: true; id: string } | { ok: false; error: string }
 const createSchema = productSchema.extend({ variants: z.array(variantSchema).optional() })
 
 export async function createProduct(input: unknown): Promise<SaveResult> {
-  const session = await requireUser()
+  const session = await requireRole(['ADMIN', 'DEPOSITO'])
   const parsed = createSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   const { variants, ...base } = parsed.data
@@ -70,7 +70,7 @@ export async function createProduct(input: unknown): Promise<SaveResult> {
 }
 
 export async function updateProduct(id: string, input: unknown): Promise<SaveResult> {
-  await requireUser()
+  await requireRole(['ADMIN', 'DEPOSITO'])
   const parsed = productSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
   try {
@@ -86,7 +86,7 @@ export async function updateProduct(id: string, input: unknown): Promise<SaveRes
 }
 
 export async function deleteProduct(id: string): Promise<SaveResult> {
-  await requireUser()
+  await requireRole(['ADMIN', 'DEPOSITO'])
   const product = await prisma.product.findUniqueOrThrow({
     where: { id },
     include: {

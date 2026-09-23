@@ -55,10 +55,17 @@ describe('getAdminDashboardStats', () => {
   })
 
   it('ventasAnuladas cuenta por fecha de anulación, no por fecha de creación de la venta', async () => {
-    await makeSale({ createdAt: OLD, cancelledAt: new Date() }) // vieja al crearse, anulada ahora: cuenta
-    await makeSale({ cancelledAt: OLD }) // creada ahora, anulada hace mucho: no cuenta en este período
+    // Dos ventas "viejas al crearse, anuladas ahora": si el código filtrara por
+    // createdAt en vez de por cancelledAt, ninguna de las dos contaría (el
+    // conteo sería 0, no 2) — el conteo mismo discrimina la implementación
+    // correcta, no solo cuál venta específica queda contada.
+    await makeSale({ createdAt: OLD, cancelledAt: new Date() })
+    await makeSale({ createdAt: OLD, cancelledAt: new Date() })
+    // Señuelo: creada ahora pero anulada hace mucho — si el código filtrara
+    // por createdAt (en vez de cancelledAt) la contaría, subiendo el total a 3.
+    await makeSale({ cancelledAt: OLD })
     const stats = await getAdminDashboardStats('month')
-    expect(stats.ventasAnuladas).toBe(1)
+    expect(stats.ventasAnuladas).toBe(2)
   })
 
   it('stockBajo devuelve solo variantes en o debajo del umbral, ordenadas ascendente', async () => {

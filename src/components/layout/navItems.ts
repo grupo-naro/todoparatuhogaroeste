@@ -1,4 +1,4 @@
-import { Package, Tags, Users, Warehouse, ShoppingCart, type LucideIcon } from 'lucide-react'
+import { Package, Tags, Users, Warehouse, ShoppingCart, Contact, type LucideIcon } from 'lucide-react'
 import type { RoleName } from '@/lib/constants'
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; roles?: RoleName[] }
@@ -11,6 +11,7 @@ const ALL: NavItem[] = [
   { href: '/categorias', label: 'Categorías', icon: Tags, roles: ['ADMIN', 'DEPOSITO'] },
   { href: '/deposito', label: 'Depósito', icon: Warehouse, roles: ['ADMIN', 'DEPOSITO'] },
   { href: '/ventas', label: 'Ventas', icon: ShoppingCart, roles: ['ADMIN', 'VENDEDOR'] },
+  { href: '/clientes', label: 'Clientes', icon: Contact, roles: ['ADMIN', 'VENDEDOR'] },
   { href: '/usuarios', label: 'Usuarios', icon: Users, roles: ['ADMIN'] },
 ]
 

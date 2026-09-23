@@ -35,4 +35,11 @@ describe('navItemsFor', () => {
     expect(labels).not.toContain('Categorías')
     expect(labels).not.toContain('Depósito')
   })
+  it('ADMIN y VENDEDOR ven Clientes', () => {
+    expect(navItemsFor('ADMIN').map((i) => i.label)).toContain('Clientes')
+    expect(navItemsFor('VENDEDOR').map((i) => i.label)).toContain('Clientes')
+  })
+  it('DEPOSITO no ve Clientes', () => {
+    expect(navItemsFor('DEPOSITO').map((i) => i.label)).not.toContain('Clientes')
+  })
 })

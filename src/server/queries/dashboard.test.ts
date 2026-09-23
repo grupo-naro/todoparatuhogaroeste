@@ -88,9 +88,8 @@ describe('getAdminDashboardStats', () => {
   })
 
   it('stockBajo incluye variantes sin fila de InventoryStock, tratándolas como 0', async () => {
-    const p2 = await prisma.product.create({
+    await prisma.product.create({
       data: { name: 'Silla', categoryId, defaultPrice: 50, variants: { create: [{ name: 'SinStock', price: 50 }] } },
-      include: { variants: true },
     })
     // Ni v1 (del beforeEach) ni la variante nueva tienen fila de InventoryStock
     // en este test — ambas deben aparecer con quantity: 0.

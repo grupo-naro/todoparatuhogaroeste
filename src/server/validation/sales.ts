@@ -9,4 +9,6 @@ export const saleItemInputSchema = z.object({
 export const createSaleSchema = z.object({
   items: z.array(saleItemInputSchema).min(1, 'Agregá al menos un producto'),
   paymentMethod: z.enum(PAYMENT_METHODS, { message: 'Elegí un método de pago' }),
+  customerPhone: z.string().trim().optional(),
+  customerName: z.string().trim().optional(),
 })

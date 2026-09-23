@@ -134,3 +134,60 @@ describe('cancelSale', () => {
       .toEqual({ ok: false, error: 'Venta no encontrada' })
   })
 })
+
+describe('createSale — cliente', () => {
+  it('con teléfono de un cliente existente, lo vincula y no crea uno nuevo', async () => {
+    const customer = await prisma.customer.create({ data: { name: 'Ana Gómez', phone: '1123456789' } })
+    const res = await createSale({
+      items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO',
+      customerPhone: '11 2345-6789', customerName: 'Nombre que se ignora',
+    })
+    expect(res.ok).toBe(true)
+    const saleId = (res as { ok: true; saleId: string }).saleId
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: saleId } })
+    expect(sale.customerId).toBe(customer.id)
+    expect(await prisma.customer.count()).toBe(1) // no se creó uno nuevo
+    const unchanged = await prisma.customer.findUniqueOrThrow({ where: { id: customer.id } })
+    expect(unchanged.name).toBe('Ana Gómez') // el nombre tipeado se ignoró
+  })
+
+  it('con teléfono nuevo y nombre, crea el cliente y lo vincula', async () => {
+    const res = await createSale({
+      items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO',
+      customerPhone: '1123456789', customerName: 'Bruno Díaz',
+    })
+    expect(res.ok).toBe(true)
+    const saleId = (res as { ok: true; saleId: string }).saleId
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: saleId } })
+    const customer = await prisma.customer.findUniqueOrThrow({ where: { phone: '1123456789' } })
+    expect(sale.customerId).toBe(customer.id)
+    expect(customer.name).toBe('Bruno Díaz')
+  })
+
+  it('teléfono nuevo sin nombre rechaza y no persiste nada', async () => {
+    const res = await createSale({
+      items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO',
+      customerPhone: '1123456789', customerName: '',
+    })
+    expect(res).toMatchObject({ ok: false, error: 'Ingresá el nombre para registrar al cliente nuevo' })
+    expect(await prisma.sale.count()).toBe(0)
+    expect(await prisma.customer.count()).toBe(0)
+  })
+
+  it('sin teléfono, la venta queda sin cliente (como antes)', async () => {
+    const res = await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO' })
+    expect(res.ok).toBe(true)
+    const saleId = (res as { ok: true; saleId: string }).saleId
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: saleId } })
+    expect(sale.customerId).toBeNull()
+  })
+
+  it('teléfono demasiado corto rechaza', async () => {
+    const res = await createSale({
+      items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO',
+      customerPhone: '123', customerName: 'Alguien',
+    })
+    expect(res).toMatchObject({ ok: false, error: 'Teléfono inválido' })
+    expect(await prisma.sale.count()).toBe(0)
+  })
+})

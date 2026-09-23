@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/server/db'
 import { requireRole } from '@/server/auth/guards'
 import { effectivePrice, toNumber } from '@/lib/pricing'
+import { normalizePhone } from '@/lib/phone'
 import { createSaleSchema } from '@/server/validation/sales'
 import { searchSellableVariants, type SellableVariant } from '@/server/queries/sales'
 
@@ -58,10 +59,39 @@ export async function createSale(input: unknown): Promise<CreateSaleResult> {
       lines.push({ variantId: item.variantId, quantity: item.quantity, unitPrice, subtotal })
     }
 
+    let customerId: string | undefined
+    if (parsed.data.customerPhone) {
+      const phone = normalizePhone(parsed.data.customerPhone)
+      if (phone.length < 6) return { ok: false, error: 'Teléfono inválido' }
+
+      const existing = await tx.customer.findUnique({ where: { phone } })
+      if (existing) {
+        customerId = existing.id
+      } else {
+        const name = parsed.data.customerName?.trim()
+        if (!name) return { ok: false, error: 'Ingresá el nombre para registrar al cliente nuevo' }
+        // upsert en vez de create: si dos ventas simultáneas llegan acá con
+        // el mismo teléfono nuevo, Postgres resuelve el conflicto en un solo
+        // statement atómico (ON CONFLICT) — no hace falta capturar un error
+        // y reintentar. Importante: un catch/retry manual con create() NO
+        // funcionaría de forma confiable acá — un unique-constraint error
+        // dentro de una transacción interactiva de Prisma puede dejar la
+        // transacción de Postgres en estado "aborted", donde cualquier
+        // query posterior (incluido el retry) fallaría también.
+        const customer = await tx.customer.upsert({
+          where: { phone },
+          create: { name, phone },
+          update: {},
+        })
+        customerId = customer.id
+      }
+    }
+
     const sale = await tx.sale.create({
       data: {
         userId: session.sub,
         paymentMethod: parsed.data.paymentMethod,
+        customerId,
         total,
         items: { create: lines },
       },

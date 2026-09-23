@@ -2,6 +2,7 @@ const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS',
 const INT = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 })
 const DATE = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, hourCycle: 'h23',
+  timeZone: 'America/Argentina/Buenos_Aires',
 })
 
 export function money(value: number | string | null | undefined): string {

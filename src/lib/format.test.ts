@@ -18,9 +18,9 @@ describe('integer', () => {
 
 describe('formatDate', () => {
   it('dd/MM/yyyy HH:mm', () => {
-    expect(formatDate(new Date('2026-09-10T14:30:00'))).toBe('10/09/2026 14:30')
+    expect(formatDate(new Date('2026-09-10T17:30:00Z'))).toBe('10/09/2026 14:30')
   })
   it('maneja medianoche (00:00) correctamente', () => {
-    expect(formatDate(new Date('2026-09-10T00:00:00'))).toBe('10/09/2026 00:00')
+    expect(formatDate(new Date('2026-09-10T03:00:00Z'))).toBe('10/09/2026 00:00')
   })
 })

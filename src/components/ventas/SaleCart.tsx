@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { createSale, searchSellableVariantsAction } from '@/server/actions/sales'
 import { findCustomerByPhoneAction } from '@/server/actions/customers'
 import type { SellableVariant } from '@/server/queries/sales'
+import { normalizePhone } from '@/lib/phone'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -37,7 +38,7 @@ export function SaleCart() {
   async function handlePhoneChange(value: string) {
     setCustomerPhone(value)
     setCustomerName('')
-    const digits = value.replace(/\D/g, '')
+    const digits = normalizePhone(value)
     if (digits.length < 6) { setFoundCustomer(null); return }
     setFoundCustomer(await findCustomerByPhoneAction(value))
   }
@@ -66,6 +67,9 @@ export function SaleCart() {
   }
 
   const total = cart.reduce((sum, l) => sum + (l.unitPrice ?? 0) * (Number(l.quantity) || 0), 0)
+
+  const phoneDigits = normalizePhone(customerPhone)
+  const matchedCustomer = foundCustomer?.phone === phoneDigits ? foundCustomer : null
 
   async function handleConfirm() {
     setError(null)
@@ -133,9 +137,9 @@ export function SaleCart() {
           onChange={(e) => handlePhoneChange(e.target.value)} />
       </label>
 
-      {customerPhone.replace(/\D/g, '').length >= 6 && (
-        foundCustomer ? (
-          <p className="text-sm text-muted">Cliente: <strong>{foundCustomer.name}</strong></p>
+      {phoneDigits.length >= 6 && (
+        matchedCustomer ? (
+          <p className="text-sm text-muted">Cliente: <strong>{matchedCustomer.name}</strong></p>
         ) : (
           <label className="flex flex-col gap-1">
             <span className="text-sm">Nombre del cliente</span>

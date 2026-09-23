@@ -116,6 +116,7 @@ export async function createSale(input: unknown): Promise<CreateSaleResult> {
   if (!result.ok) return { ok: false, error: result.error }
   revalidatePath('/deposito')
   revalidatePath('/ventas')
+  revalidatePath('/clientes')
   return { ok: true, saleId: result.sale.id, number: result.sale.number }
 }
 
@@ -155,5 +156,6 @@ export async function cancelSale(id: string): Promise<ActionResult> {
   revalidatePath('/deposito')
   revalidatePath('/ventas')
   revalidatePath(`/ventas/${id}`)
+  revalidatePath('/clientes')
   return { ok: true }
 }

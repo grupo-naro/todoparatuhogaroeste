@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
       <Header userName={session.name} role={session.role} />
       <div className="flex flex-1">
         <Sidebar role={session.role} />
-        <main className="flex-1 p-4 sm:p-6 min-w-0">
+        <main className="flex-1 p-4 sm:p-6 min-w-0 print:p-0">
           <ToastProvider>{children}</ToastProvider>
         </main>
       </div>

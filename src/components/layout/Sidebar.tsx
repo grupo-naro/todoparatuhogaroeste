@@ -5,7 +5,7 @@ import { NavLink } from './NavLink'
 
 export function Sidebar({ role }: { role: RoleName }) {
   return (
-    <nav className="hidden lg:flex flex-col w-56 shrink-0 border-r border-border p-3 gap-1">
+    <nav className="hidden lg:flex flex-col w-56 shrink-0 border-r border-border p-3 gap-1 print:hidden">
       {navItemsFor(role).map((item) => <NavLink key={item.href} item={item} />)}
     </nav>
   )

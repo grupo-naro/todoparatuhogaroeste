@@ -21,7 +21,7 @@ export async function signIn(_prev: unknown, formData: FormData): Promise<{ erro
   if (!user.active) return { error: 'Usuario inactivo' }
 
   await createSession({ sub: user.id, role: user.role, name: user.name, mustChangePassword: user.mustChangePassword })
-  redirect('/productos')
+  redirect('/')
 }
 
 export async function signOut(): Promise<void> {
@@ -31,7 +31,7 @@ export async function signOut(): Promise<void> {
 
 export async function changePassword(_prev: unknown, formData: FormData): Promise<{ error: string }> {
   const session = await requireUserAllowingPasswordChange()
-  if (!session.mustChangePassword) redirect('/productos')
+  if (!session.mustChangePassword) redirect('/')
   const parsed = changePasswordSchema.safeParse({
     password: formData.get('password'),
     confirmPassword: formData.get('confirmPassword'),
@@ -46,5 +46,5 @@ export async function changePassword(_prev: unknown, formData: FormData): Promis
   const passwordHash = await hashPassword(parsed.data.password)
   await prisma.user.update({ where: { id: session.sub }, data: { passwordHash, mustChangePassword: false } })
   await createSession({ sub: session.sub, role: session.role, name: session.name, mustChangePassword: false })
-  redirect('/productos')
+  redirect('/')
 }

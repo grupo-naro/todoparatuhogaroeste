@@ -35,11 +35,11 @@ const fd = (email: string, password: string) => {
 }
 
 describe('signIn', () => {
-  it('con credenciales válidas crea sesión y redirige a /productos', async () => {
+  it('con credenciales válidas crea sesión y redirige a /', async () => {
     await prisma.user.create({
       data: { email: 'a@a.com', name: 'Ana', role: 'DEPOSITO', passwordHash: await hashPassword('secreto123') },
     })
-    await expect(signIn(undefined, fd('a@a.com', 'secreto123'))).rejects.toThrow('REDIRECT:/productos')
+    await expect(signIn(undefined, fd('a@a.com', 'secreto123'))).rejects.toThrow('REDIRECT:/')
     expect(vi.mocked(createSession)).toHaveBeenCalledWith(expect.objectContaining({ role: 'DEPOSITO', name: 'Ana' }))
   })
 
@@ -71,7 +71,7 @@ describe('signIn', () => {
         passwordHash: await hashPassword('30123456'),
       },
     })
-    await expect(signIn(undefined, fd('nuevo@a.com', '30123456'))).rejects.toThrow('REDIRECT:/productos')
+    await expect(signIn(undefined, fd('nuevo@a.com', '30123456'))).rejects.toThrow('REDIRECT:/')
     expect(vi.mocked(createSession)).toHaveBeenCalledWith(expect.objectContaining({ mustChangePassword: true }))
   })
 })
@@ -88,7 +88,7 @@ describe('changePassword', () => {
     fdPw.set('password', 'nueva123')
     fdPw.set('confirmPassword', 'nueva123')
 
-    await expect(changePassword(undefined, fdPw)).rejects.toThrow('REDIRECT:/productos')
+    await expect(changePassword(undefined, fdPw)).rejects.toThrow('REDIRECT:/')
 
     const updated = await prisma.user.findUniqueOrThrow({ where: { id: user.id } })
     expect(updated.mustChangePassword).toBe(false)
@@ -125,7 +125,7 @@ describe('changePassword', () => {
     const fdPw = new FormData()
     fdPw.set('password', 'nueva123')
     fdPw.set('confirmPassword', 'nueva123')
-    await expect(changePassword(undefined, fdPw)).rejects.toThrow('REDIRECT:/productos')
+    await expect(changePassword(undefined, fdPw)).rejects.toThrow('REDIRECT:/')
   })
 
   it('rechaza que la contraseña nueva sea el propio DNI', async () => {

@@ -1,3 +1,4 @@
+import 'server-only'
 import { prisma } from '@/server/db'
 import { toNumber } from '@/lib/pricing'
 import { getPeriodRange, type Period } from '@/lib/period'
@@ -22,10 +23,11 @@ export async function getAdminDashboardStats(period: Period): Promise<AdminDashb
     prisma.customer.count({ where: { createdAt: { gte: from, lte: to } } }),
     prisma.sale.count({ where: { cancelledAt: { gte: from, lte: to } } }),
     prisma.productVariant.findMany({
-      where: { stock: { quantity: { lte: LOW_STOCK_THRESHOLD } } },
+      // Una variante sin fila de InventoryStock significa 0 unidades (mismo
+      // criterio que el resto de la app — ver inventory.ts y el filtro "Sin
+      // stock" de /deposito), así que también cuenta como stock bajo.
+      where: { OR: [{ stock: { quantity: { lte: LOW_STOCK_THRESHOLD } } }, { stock: null }] },
       include: { stock: true, product: { select: { name: true } } },
-      orderBy: { stock: { quantity: 'asc' } },
-      take: 5,
     }),
   ])
 
@@ -34,9 +36,10 @@ export async function getAdminDashboardStats(period: Period): Promise<AdminDashb
     cantidadVentas,
     clientesNuevos,
     ventasAnuladas,
-    stockBajo: stockBajoRows.map((v) => ({
-      variantId: v.id, productName: v.product.name, variantName: v.name, quantity: v.stock?.quantity ?? 0,
-    })),
+    stockBajo: stockBajoRows
+      .map((v) => ({ variantId: v.id, productName: v.product.name, variantName: v.name, quantity: v.stock?.quantity ?? 0 }))
+      .sort((a, b) => a.quantity - b.quantity)
+      .slice(0, 5),
   }
 }
 

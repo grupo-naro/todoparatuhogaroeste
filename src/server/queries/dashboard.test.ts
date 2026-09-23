@@ -76,14 +76,28 @@ describe('getAdminDashboardStats', () => {
       },
       include: { variants: true },
     })
+    const byName = Object.fromEntries(p2.variants.map((v) => [v.name, v.id]))
     await prisma.inventoryStock.create({ data: { variantId: v1, quantity: 10 } }) // por encima del umbral, no aparece
-    await prisma.inventoryStock.create({ data: { variantId: p2.variants[0].id, quantity: LOW_STOCK_THRESHOLD } }) // justo en el umbral
-    await prisma.inventoryStock.create({ data: { variantId: p2.variants[1].id, quantity: 0 } })
-    await prisma.inventoryStock.create({ data: { variantId: p2.variants[2].id, quantity: 1 } })
+    await prisma.inventoryStock.create({ data: { variantId: byName['Roja'], quantity: LOW_STOCK_THRESHOLD } }) // justo en el umbral
+    await prisma.inventoryStock.create({ data: { variantId: byName['Azul'], quantity: 0 } })
+    await prisma.inventoryStock.create({ data: { variantId: byName['Verde'], quantity: 1 } })
 
     const stats = await getAdminDashboardStats('day')
     expect(stats.stockBajo.map((v) => v.quantity)).toEqual([0, 1, LOW_STOCK_THRESHOLD])
     expect(stats.stockBajo[0]).toMatchObject({ productName: 'Silla', variantName: 'Azul', quantity: 0 })
+  })
+
+  it('stockBajo incluye variantes sin fila de InventoryStock, tratándolas como 0', async () => {
+    const p2 = await prisma.product.create({
+      data: { name: 'Silla', categoryId, defaultPrice: 50, variants: { create: [{ name: 'SinStock', price: 50 }] } },
+      include: { variants: true },
+    })
+    // Ni v1 (del beforeEach) ni la variante nueva tienen fila de InventoryStock
+    // en este test — ambas deben aparecer con quantity: 0.
+    const stats = await getAdminDashboardStats('day')
+    const names = stats.stockBajo.map((v) => v.variantName).sort()
+    expect(names).toEqual(['A', 'SinStock'])
+    expect(stats.stockBajo.every((v) => v.quantity === 0)).toBe(true)
   })
 
   it('stockBajo no depende del período elegido', async () => {

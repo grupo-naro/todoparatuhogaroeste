@@ -102,3 +102,35 @@ describe('createSale', () => {
     expect(res).toEqual({ ok: false, error: 'Elegí un método de pago' })
   })
 })
+
+import { cancelSale } from './sales'
+
+describe('cancelSale', () => {
+  it('repone el stock y registra un movimiento ANULACION', async () => {
+    const created = await createSale({ items: [{ variantId: v1, quantity: 2 }], paymentMethod: 'EFECTIVO' })
+    const saleId = (created as { ok: true; saleId: string }).saleId
+
+    const res = await cancelSale(saleId)
+    expect(res).toEqual({ ok: true })
+
+    expect(await prisma.inventoryStock.findUniqueOrThrow({ where: { variantId: v1 } })).toMatchObject({ quantity: 5 })
+    const t = await prisma.inventoryTransaction.findFirstOrThrow({ where: { variantId: v1, type: 'ANULACION' } })
+    expect(t).toMatchObject({ quantityDelta: 2, quantityAfter: 5, batchId: saleId })
+
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: saleId } })
+    expect(sale.cancelledAt).not.toBeNull()
+    expect(sale.cancelledById).toBe(userId)
+  })
+
+  it('rechaza anular una venta ya anulada', async () => {
+    const created = await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO' })
+    const saleId = (created as { ok: true; saleId: string }).saleId
+    await cancelSale(saleId)
+    expect(await cancelSale(saleId)).toEqual({ ok: false, error: 'Esta venta ya fue anulada' })
+  })
+
+  it('rechaza un id inexistente', async () => {
+    expect(await cancelSale('00000000-0000-0000-0000-000000000000'))
+      .toEqual({ ok: false, error: 'Venta no encontrada' })
+  })
+})

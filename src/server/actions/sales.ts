@@ -93,3 +93,37 @@ export async function searchSellableVariantsAction(q: string): Promise<SellableV
   await requireRole(['ADMIN', 'VENDEDOR'])
   return searchSellableVariants(q)
 }
+
+export type ActionResult = { ok: true } | { ok: false; error: string }
+
+export async function cancelSale(id: string): Promise<ActionResult> {
+  const session = await requireRole(['ADMIN', 'VENDEDOR'])
+  const sale = await prisma.sale.findUnique({ where: { id }, include: { items: true } })
+  if (!sale) return { ok: false, error: 'Venta no encontrada' }
+  if (sale.cancelledAt) return { ok: false, error: 'Esta venta ya fue anulada' }
+
+  await prisma.$transaction(async (tx) => {
+    for (const item of sale.items) {
+      const current = await tx.inventoryStock.findUnique({ where: { variantId: item.variantId } })
+      const before = current?.quantity ?? 0
+      const after = before + item.quantity
+      await tx.inventoryStock.upsert({
+        where: { variantId: item.variantId },
+        update: { quantity: after },
+        create: { variantId: item.variantId, quantity: after },
+      })
+      await tx.inventoryTransaction.create({
+        data: {
+          variantId: item.variantId, type: 'ANULACION', quantityDelta: item.quantity, quantityAfter: after,
+          userId: session.sub, batchId: sale.id,
+        },
+      })
+    }
+    await tx.sale.update({ where: { id }, data: { cancelledAt: new Date(), cancelledById: session.sub } })
+  })
+
+  revalidatePath('/deposito')
+  revalidatePath('/ventas')
+  revalidatePath(`/ventas/${id}`)
+  return { ok: true }
+}

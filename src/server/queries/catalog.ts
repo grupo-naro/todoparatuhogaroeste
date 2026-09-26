@@ -1,5 +1,8 @@
 import 'server-only'
+import { z } from 'zod'
 import { prisma } from '@/server/db'
+
+const categoryIdSchema = z.string().uuid()
 
 export type PublicCatalogVariant = { id: string; name: string; disponible: boolean }
 
@@ -10,8 +13,9 @@ export type PublicCatalogProduct = {
 }
 
 export async function listPublicCatalog(categoryId?: string): Promise<PublicCatalogProduct[]> {
+  const validCategoryId = categoryId && categoryIdSchema.safeParse(categoryId).success ? categoryId : undefined
   const products = await prisma.product.findMany({
-    where: categoryId ? { categoryId } : undefined,
+    where: validCategoryId ? { categoryId: validCategoryId } : undefined,
     select: {
       id: true,
       name: true,

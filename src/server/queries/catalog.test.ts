@@ -73,4 +73,11 @@ describe('listPublicCatalog', () => {
     const rows = await listPublicCatalog()
     expect(rows[0].images).toEqual([])
   })
+
+  it('un categoryId con formato inválido (no UUID) no rompe — trae todos los productos', async () => {
+    await prisma.product.create({ data: { name: 'Sillón Milán', categoryId, defaultPrice: 500, variants: { create: [{ name: 'A', price: 500 }] } } })
+    const rows = await listPublicCatalog('sillones') // slug, no UUID — exactamente lo que alguien probaría a mano
+    expect(rows).toHaveLength(1)
+    expect(rows[0].name).toBe('Sillón Milán')
+  })
 })

@@ -70,6 +70,7 @@ export function SaleCart() {
   }
 
   const total = cart.reduce((sum, l) => sum + (l.unitPrice ?? 0) * (Number(l.quantity) || 0), 0)
+  const unpricedLine = cart.find((l) => l.unitPrice === null)
 
   const phoneDigits = normalizePhone(customerPhone)
   const matchedCustomer = foundCustomer?.phone === phoneDigits ? foundCustomer : null
@@ -104,20 +105,9 @@ export function SaleCart() {
     router.push(`/ventas/${res.saleId}?justCreated=1`)
   }
 
-  if (showQuote) {
-    return (
-      <QuoteReceipt
-        lines={cart}
-        total={total}
-        customerName={quoteCustomerName}
-        onNuevoPresupuesto={handleNuevoPresupuesto}
-      />
-    )
-  }
-
   return (
     <div className="flex flex-col gap-4 pb-4">
-      <div className="flex gap-2" role="group" aria-label="Tipo">
+      <div className="flex gap-2 print:hidden" role="group" aria-label="Tipo">
         <button type="button" aria-pressed={mode === 'venta'} onClick={() => handleModeChange('venta')}
           className={`px-3 min-h-11 rounded text-sm font-medium ${
             mode === 'venta' ? 'bg-primary text-primary-foreground' : 'border border-border'
@@ -132,82 +122,99 @@ export function SaleCart() {
         </button>
       </div>
 
-      <div className="relative">
-        <label className="flex flex-col gap-1">
-          <span className="text-sm">Buscar producto</span>
-          <Input aria-label="Buscar producto" placeholder="Nombre del producto o variante…" value={q}
-            onChange={(e) => handleSearch(e.target.value)} />
-        </label>
-        {results.length > 0 && (
-          <ul className="absolute z-10 mt-1 w-full max-h-64 overflow-auto bg-card border border-border rounded shadow-lg">
-            {results.map((v) => (
-              <li key={v.variantId}>
-                <button type="button" onClick={() => addToCart(v)}
-                  className="flex w-full items-center justify-between gap-2 px-3 min-h-11 text-left text-sm hover:bg-border/40">
-                  <span>{v.productName} · {v.variantName}</span>
-                  <span className="text-muted text-xs">Quedan {v.quantity}</span>
-                </button>
+      {showQuote ? (
+        <QuoteReceipt
+          lines={cart}
+          total={total}
+          customerName={quoteCustomerName}
+          onNuevoPresupuesto={handleNuevoPresupuesto}
+        />
+      ) : (
+        <>
+          <div className="relative">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Buscar producto</span>
+              <Input aria-label="Buscar producto" placeholder="Nombre del producto o variante…" value={q}
+                onChange={(e) => handleSearch(e.target.value)} />
+            </label>
+            {results.length > 0 && (
+              <ul className="absolute z-10 mt-1 w-full max-h-64 overflow-auto bg-card border border-border rounded shadow-lg">
+                {results.map((v) => (
+                  <li key={v.variantId}>
+                    <button type="button" onClick={() => addToCart(v)}
+                      className="flex w-full items-center justify-between gap-2 px-3 min-h-11 text-left text-sm hover:bg-border/40">
+                      <span>{v.productName} · {v.variantName}</span>
+                      <span className="text-muted text-xs">Quedan {v.quantity}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <ul className="flex flex-col gap-2">
+            {cart.map((line) => (
+              <li key={line.variantId} className="flex items-center gap-3 border border-border rounded-lg p-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{line.productName} · {line.variantName}</p>
+                  <p className="text-xs text-muted">{money(line.unitPrice)} c/u · quedan {line.available}</p>
+                </div>
+                <QuantityStepper value={line.quantity} onChange={(v) => updateQuantity(line.variantId, v)}
+                  ariaLabel={`Cantidad (${line.productName} · ${line.variantName})`} />
+                <button type="button" aria-label={`Quitar ${line.productName} · ${line.variantName}`}
+                  onClick={() => removeLine(line.variantId)} className="min-h-11 min-w-11 text-muted hover:text-danger">×</button>
               </li>
             ))}
+            {cart.length === 0 && <li className="text-center text-muted py-4">Todavía no agregaste productos</li>}
           </ul>
-        )}
-      </div>
 
-      <ul className="flex flex-col gap-2">
-        {cart.map((line) => (
-          <li key={line.variantId} className="flex items-center gap-3 border border-border rounded-lg p-3">
-            <div className="flex-1">
-              <p className="text-sm font-medium">{line.productName} · {line.variantName}</p>
-              <p className="text-xs text-muted">{money(line.unitPrice)} c/u · quedan {line.available}</p>
-            </div>
-            <QuantityStepper value={line.quantity} onChange={(v) => updateQuantity(line.variantId, v)}
-              ariaLabel={`Cantidad (${line.productName} · ${line.variantName})`} />
-            <button type="button" aria-label={`Quitar ${line.productName} · ${line.variantName}`}
-              onClick={() => removeLine(line.variantId)} className="min-h-11 min-w-11 text-muted hover:text-danger">×</button>
-          </li>
-        ))}
-        {cart.length === 0 && <li className="text-center text-muted py-4">Todavía no agregaste productos</li>}
-      </ul>
+          <div className="flex items-center justify-between border-t border-border pt-3">
+            <span className="font-medium">Total</span>
+            <span className="text-lg font-semibold">{money(total)}</span>
+          </div>
 
-      <div className="flex items-center justify-between border-t border-border pt-3">
-        <span className="font-medium">Total</span>
-        <span className="text-lg font-semibold">{money(total)}</span>
-      </div>
-
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">Teléfono del cliente (opcional)</span>
-        <Input aria-label="Teléfono del cliente (opcional)" inputMode="tel" value={customerPhone}
-          onChange={(e) => handlePhoneChange(e.target.value)} />
-      </label>
-
-      {phoneDigits.length >= 6 && (
-        matchedCustomer ? (
-          <p className="text-sm text-muted">Cliente: <strong>{matchedCustomer.name}</strong></p>
-        ) : (
           <label className="flex flex-col gap-1">
-            <span className="text-sm">Nombre del cliente</span>
-            <Input aria-label="Nombre del cliente" value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)} />
+            <span className="text-sm">Teléfono del cliente (opcional)</span>
+            <Input aria-label="Teléfono del cliente (opcional)" inputMode="tel" value={customerPhone}
+              onChange={(e) => handlePhoneChange(e.target.value)} />
           </label>
-        )
+
+          {phoneDigits.length >= 6 && (
+            matchedCustomer ? (
+              <p className="text-sm text-muted">Cliente: <strong>{matchedCustomer.name}</strong></p>
+            ) : (
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Nombre del cliente</span>
+                <Input aria-label="Nombre del cliente" value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)} />
+              </label>
+            )
+          )}
+
+          {mode === 'venta' && (
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Método de pago</span>
+              <Select aria-label="Método de pago" value={paymentMethod} onValueChange={setPaymentMethod}
+                options={PAYMENT_METHODS.map((m) => ({ value: m, label: PAYMENT_METHOD_LABELS[m] }))} />
+            </label>
+          )}
+
+          {mode === 'presupuesto' && unpricedLine && (
+            <p className="text-sm text-danger">
+              {unpricedLine.productName} · {unpricedLine.variantName} no tiene precio cargado — no se puede generar el presupuesto.
+            </p>
+          )}
+
+          {error && <p className="text-sm text-danger">{error}</p>}
+
+          <Button
+            onClick={mode === 'venta' ? handleConfirm : () => setShowQuote(true)}
+            disabled={pending || cart.length === 0 || (mode === 'presupuesto' && !!unpricedLine)}
+          >
+            {mode === 'venta' ? (pending ? 'Guardando…' : 'Confirmar venta') : 'Generar presupuesto'}
+          </Button>
+        </>
       )}
-
-      {mode === 'venta' && (
-        <label className="flex flex-col gap-1">
-          <span className="text-sm">Método de pago</span>
-          <Select aria-label="Método de pago" value={paymentMethod} onValueChange={setPaymentMethod}
-            options={PAYMENT_METHODS.map((m) => ({ value: m, label: PAYMENT_METHOD_LABELS[m] }))} />
-        </label>
-      )}
-
-      {error && <p className="text-sm text-danger">{error}</p>}
-
-      <Button
-        onClick={mode === 'venta' ? handleConfirm : () => setShowQuote(true)}
-        disabled={pending || cart.length === 0}
-      >
-        {mode === 'venta' ? (pending ? 'Guardando…' : 'Confirmar venta') : 'Generar presupuesto'}
-      </Button>
     </div>
   )
 }

@@ -53,4 +53,10 @@ describe('QuoteReceipt', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Nuevo presupuesto' }))
     expect(onNuevo).toHaveBeenCalled()
   })
+
+  it('muestra la fecha de emisión', () => {
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    render(<QuoteReceipt lines={lines} total={600} onNuevoPresupuesto={vi.fn()} />)
+    expect(screen.getByText(/\d{2}\/\d{2}\/\d{4}/)).toBeInTheDocument()
+  })
 })

@@ -188,4 +188,32 @@ describe('SaleCart — modo presupuesto', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Generar presupuesto' }))
     expect(screen.queryByText(/Presupuesto para/)).not.toBeInTheDocument()
   })
+
+  it('volver a Venta después de generar un presupuesto restaura la pantalla de armado con el mismo carrito', async () => {
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    render(<SaleCart />)
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.click(screen.getByRole('button', { name: 'Generar presupuesto' }))
+    expect(screen.getByRole('heading', { name: 'Presupuesto' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Venta' }))
+    expect(screen.getByLabelText(/^Cantidad \(/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Método de pago')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar venta' })).toBeInTheDocument()
+  })
+
+  it('una línea sin precio cargado deshabilita "Generar presupuesto" y muestra un aviso', async () => {
+    const sinPrecio = { variantId: 'v2', productName: 'Ropero a medida', variantName: 'Único', categoryName: 'Muebles a medida / Otros', quantity: 3, unitPrice: null }
+    searchSellableVariantsAction.mockResolvedValue([sinPrecio])
+    render(<SaleCart />)
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'ropero')
+    await userEvent.click(await screen.findByRole('button', { name: /^Ropero a medida/ }))
+
+    expect(screen.getByText(/no tiene precio cargado/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Generar presupuesto' })).toBeDisabled()
+  })
 })

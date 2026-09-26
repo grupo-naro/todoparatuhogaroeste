@@ -1,7 +1,7 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { money, integer } from '@/lib/format'
+import { money, integer, formatDate } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 
 export type QuoteLine = {
@@ -12,6 +12,8 @@ export type QuoteLine = {
 export function QuoteReceipt({ lines, total, customerName, onNuevoPresupuesto }: {
   lines: QuoteLine[]; total: number; customerName?: string; onNuevoPresupuesto: () => void
 }) {
+  const [date] = useState(() => new Date())
+
   useEffect(() => {
     window.print()
   }, [])
@@ -32,7 +34,7 @@ export function QuoteReceipt({ lines, total, customerName, onNuevoPresupuesto }:
           <Image src="/logo.png" alt="" width={40} height={40} className="rounded-full" />
           <div>
             <p className="font-semibold">Jael Castillo — Todo para tu Hogar</p>
-            <p className="text-xs text-muted">Presupuesto</p>
+            <p className="text-xs text-muted">Presupuesto · {formatDate(date)}</p>
           </div>
         </div>
         {customerName && <p className="text-sm mb-3">Presupuesto para: <strong>{customerName}</strong></p>}

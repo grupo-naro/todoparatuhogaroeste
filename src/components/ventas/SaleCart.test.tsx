@@ -124,3 +124,68 @@ describe('SaleCart — cliente', () => {
     expect(createSale).toHaveBeenCalledWith({ items: [{ variantId: 'v1', quantity: 1 }], paymentMethod: 'EFECTIVO' })
   })
 })
+
+describe('SaleCart — modo presupuesto', () => {
+  it('el toggle cambia el texto del botón y oculta el método de pago', async () => {
+    render(<SaleCart />)
+    expect(screen.getByRole('button', { name: 'Confirmar venta' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Método de pago')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    expect(screen.getByRole('button', { name: 'Generar presupuesto' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Método de pago')).not.toBeInTheDocument()
+  })
+
+  it('generar un presupuesto muestra el contenido esperado y no llama a createSale', async () => {
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    render(<SaleCart />)
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.click(screen.getByRole('button', { name: 'Generar presupuesto' }))
+
+    expect(screen.getByRole('heading', { name: 'Presupuesto' })).toBeInTheDocument()
+    expect(screen.getByText(/Sillón Milán/)).toBeInTheDocument()
+    expect(createSale).not.toHaveBeenCalled()
+  })
+
+  it('cambiar de modo con el carrito cargado no lo vacía', async () => {
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    render(<SaleCart />)
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    expect(screen.getByLabelText(/^Cantidad \(/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Venta' }))
+    expect(screen.getByLabelText(/^Cantidad \(/)).toBeInTheDocument()
+  })
+
+  it('"Nuevo presupuesto" vacía el carrito y vuelve a la pantalla de armado', async () => {
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    render(<SaleCart />)
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.click(screen.getByRole('button', { name: 'Generar presupuesto' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo presupuesto' }))
+
+    expect(screen.getByRole('button', { name: 'Generar presupuesto' })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Cantidad \(/)).not.toBeInTheDocument()
+  })
+
+  it('teléfono cargado sin nombre todavía no muestra "Presupuesto para" en el impreso', async () => {
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    findCustomerByPhoneAction.mockResolvedValue(null)
+    render(<SaleCart />)
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.type(screen.getByLabelText('Teléfono del cliente (opcional)'), '1123456789')
+    await screen.findByLabelText('Nombre del cliente') // confirma que ya cargó, sin escribir nada
+    await userEvent.click(screen.getByRole('button', { name: 'Generar presupuesto' }))
+    expect(screen.queryByText(/Presupuesto para/)).not.toBeInTheDocument()
+  })
+})

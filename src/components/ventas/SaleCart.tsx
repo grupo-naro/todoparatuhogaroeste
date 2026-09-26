@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select'
 import { QuantityStepper } from '@/components/grid/QuantityStepper'
 import { money } from '@/lib/format'
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '@/lib/constants'
+import { QuoteReceipt } from './QuoteReceipt'
 
 type CartLine = {
   variantId: string; productName: string; variantName: string
@@ -28,6 +29,8 @@ export function SaleCart() {
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [foundCustomer, setFoundCustomer] = useState<{ id: string; name: string; phone: string } | null>(null)
+  const [mode, setMode] = useState<'venta' | 'presupuesto'>('venta')
+  const [showQuote, setShowQuote] = useState(false)
 
   async function handleSearch(value: string) {
     setQ(value)
@@ -70,6 +73,20 @@ export function SaleCart() {
 
   const phoneDigits = normalizePhone(customerPhone)
   const matchedCustomer = foundCustomer?.phone === phoneDigits ? foundCustomer : null
+  const quoteCustomerName = matchedCustomer?.name || customerName.trim() || undefined
+
+  function handleModeChange(next: 'venta' | 'presupuesto') {
+    setMode(next)
+    setShowQuote(false)
+  }
+
+  function handleNuevoPresupuesto() {
+    setCart([])
+    setCustomerPhone('')
+    setCustomerName('')
+    setFoundCustomer(null)
+    setShowQuote(false)
+  }
 
   async function handleConfirm() {
     setError(null)
@@ -87,8 +104,34 @@ export function SaleCart() {
     router.push(`/ventas/${res.saleId}?justCreated=1`)
   }
 
+  if (showQuote) {
+    return (
+      <QuoteReceipt
+        lines={cart}
+        total={total}
+        customerName={quoteCustomerName}
+        onNuevoPresupuesto={handleNuevoPresupuesto}
+      />
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4 pb-4">
+      <div className="flex gap-2" role="group" aria-label="Tipo">
+        <button type="button" aria-pressed={mode === 'venta'} onClick={() => handleModeChange('venta')}
+          className={`px-3 min-h-11 rounded text-sm font-medium ${
+            mode === 'venta' ? 'bg-primary text-primary-foreground' : 'border border-border'
+          }`}>
+          Venta
+        </button>
+        <button type="button" aria-pressed={mode === 'presupuesto'} onClick={() => handleModeChange('presupuesto')}
+          className={`px-3 min-h-11 rounded text-sm font-medium ${
+            mode === 'presupuesto' ? 'bg-primary text-primary-foreground' : 'border border-border'
+          }`}>
+          Presupuesto
+        </button>
+      </div>
+
       <div className="relative">
         <label className="flex flex-col gap-1">
           <span className="text-sm">Buscar producto</span>
@@ -149,16 +192,21 @@ export function SaleCart() {
         )
       )}
 
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">Método de pago</span>
-        <Select aria-label="Método de pago" value={paymentMethod} onValueChange={setPaymentMethod}
-          options={PAYMENT_METHODS.map((m) => ({ value: m, label: PAYMENT_METHOD_LABELS[m] }))} />
-      </label>
+      {mode === 'venta' && (
+        <label className="flex flex-col gap-1">
+          <span className="text-sm">Método de pago</span>
+          <Select aria-label="Método de pago" value={paymentMethod} onValueChange={setPaymentMethod}
+            options={PAYMENT_METHODS.map((m) => ({ value: m, label: PAYMENT_METHOD_LABELS[m] }))} />
+        </label>
+      )}
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
-      <Button onClick={handleConfirm} disabled={pending || cart.length === 0}>
-        {pending ? 'Guardando…' : 'Confirmar venta'}
+      <Button
+        onClick={mode === 'venta' ? handleConfirm : () => setShowQuote(true)}
+        disabled={pending || cart.length === 0}
+      >
+        {mode === 'venta' ? (pending ? 'Guardando…' : 'Confirmar venta') : 'Generar presupuesto'}
       </Button>
     </div>
   )

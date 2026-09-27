@@ -54,7 +54,7 @@ describe('listPublicCatalog', () => {
     await prisma.product.create({ data: { name: 'Sillón Milán', categoryId, defaultPrice: 500, variants: { create: [{ name: 'A', price: 500 }] } } })
     await prisma.product.create({ data: { name: 'Mesa Roble', categoryId: c2.id, defaultPrice: 800, variants: { create: [{ name: 'A', price: 800 }] } } })
 
-    const rows = await listPublicCatalog(categoryId)
+    const rows = await listPublicCatalog({ categoryId })
     expect(rows).toHaveLength(1)
     expect(rows[0].name).toBe('Sillón Milán')
   })
@@ -76,8 +76,47 @@ describe('listPublicCatalog', () => {
 
   it('un categoryId con formato inválido (no UUID) no rompe — trae todos los productos', async () => {
     await prisma.product.create({ data: { name: 'Sillón Milán', categoryId, defaultPrice: 500, variants: { create: [{ name: 'A', price: 500 }] } } })
-    const rows = await listPublicCatalog('sillones') // slug, no UUID — exactamente lo que alguien probaría a mano
+    const rows = await listPublicCatalog({ categoryId: 'sillones' }) // slug, no UUID — exactamente lo que alguien probaría a mano
     expect(rows).toHaveLength(1)
     expect(rows[0].name).toBe('Sillón Milán')
+  })
+
+  it('q busca por nombre de producto, sin distinguir mayúsculas', async () => {
+    await prisma.product.create({ data: { name: 'Sillón Milán', categoryId, defaultPrice: 500, variants: { create: [{ name: 'A', price: 500 }] } } })
+    await prisma.product.create({ data: { name: 'Mesa Roble', categoryId, defaultPrice: 800, variants: { create: [{ name: 'A', price: 800 }] } } })
+
+    const rows = await listPublicCatalog({ q: 'milán' })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].name).toBe('Sillón Milán')
+  })
+
+  it('q también busca por nombre de variante (medida/tela/color)', async () => {
+    await prisma.product.create({
+      data: {
+        name: 'Sillón Milán', categoryId, defaultPrice: 500,
+        variants: { create: [{ name: '2 cuerpos · Tela A · Azul', price: 500 }] },
+      },
+    })
+    await prisma.product.create({ data: { name: 'Mesa Roble', categoryId, defaultPrice: 800, variants: { create: [{ name: 'A', price: 800 }] } } })
+
+    const rows = await listPublicCatalog({ q: 'azul' })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].name).toBe('Sillón Milán')
+  })
+
+  it('q y categoryId se combinan (AND, no OR)', async () => {
+    const c2 = await prisma.category.create({ data: { name: 'Mesas', slug: 'mesas' } })
+    await prisma.product.create({ data: { name: 'Sillón Milán', categoryId, defaultPrice: 500, variants: { create: [{ name: 'A', price: 500 }] } } })
+    await prisma.product.create({ data: { name: 'Mesa Milán', categoryId: c2.id, defaultPrice: 800, variants: { create: [{ name: 'A', price: 800 }] } } })
+
+    const rows = await listPublicCatalog({ categoryId, q: 'milán' })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].name).toBe('Sillón Milán')
+  })
+
+  it('sin q, se comporta igual que antes (trae todo, filtrado solo por categoría si se pasa)', async () => {
+    await prisma.product.create({ data: { name: 'Sillón Milán', categoryId, defaultPrice: 500, variants: { create: [{ name: 'A', price: 500 }] } } })
+    const rows = await listPublicCatalog()
+    expect(rows).toHaveLength(1)
   })
 })

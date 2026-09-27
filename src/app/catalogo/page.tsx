@@ -1,6 +1,6 @@
 import { listPublicCatalog } from '@/server/queries/catalog'
 import { listCategoryOptions } from '@/server/queries/categories'
-import { CategoryFilter } from '@/components/catalogo/CategoryFilter'
+import { CatalogFilters } from '@/components/catalogo/CatalogFilters'
 import { ProductGrid } from '@/components/catalogo/ProductGrid'
 
 export const metadata = {
@@ -8,16 +8,16 @@ export const metadata = {
   description: 'Mirá nuestros productos y consultá por WhatsApp.',
 }
 
-export default async function CatalogoPage({ searchParams }: { searchParams: Promise<{ categoria?: string }> }) {
+export default async function CatalogoPage({ searchParams }: { searchParams: Promise<{ categoria?: string; q?: string }> }) {
   const sp = await searchParams
   const [products, categories] = await Promise.all([
-    listPublicCatalog(sp.categoria || undefined),
+    listPublicCatalog({ categoryId: sp.categoria || undefined, q: sp.q || undefined }),
     listCategoryOptions(),
   ])
   return (
     <section>
       <h1 className="text-xl font-semibold mb-4">Catálogo</h1>
-      <CategoryFilter categories={categories} />
+      <CatalogFilters categories={categories} />
       <ProductGrid products={products} />
     </section>
   )

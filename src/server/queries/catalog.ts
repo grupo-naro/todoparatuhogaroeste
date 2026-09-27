@@ -12,10 +12,17 @@ export type PublicCatalogProduct = {
   variants: PublicCatalogVariant[]
 }
 
-export async function listPublicCatalog(categoryId?: string): Promise<PublicCatalogProduct[]> {
+export async function listPublicCatalog(filters: { categoryId?: string; q?: string } = {}): Promise<PublicCatalogProduct[]> {
+  const { categoryId, q } = filters
   const validCategoryId = categoryId && categoryIdSchema.safeParse(categoryId).success ? categoryId : undefined
+  const term = q?.trim()
+  const like = term ? { contains: term, mode: 'insensitive' as const } : undefined
+
   const products = await prisma.product.findMany({
-    where: validCategoryId ? { categoryId: validCategoryId } : undefined,
+    where: {
+      ...(validCategoryId ? { categoryId: validCategoryId } : {}),
+      ...(like ? { OR: [{ name: like }, { variants: { some: { name: like } } }] } : {}),
+    },
     select: {
       id: true,
       name: true,

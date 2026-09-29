@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { useFilterTransition } from '@/components/ui/filter-transition'
 
 type Status = 'todos' | 'disponible' | 'sin_stock'
 
@@ -16,6 +17,7 @@ export function StockFilters({ categories }: { categories: { value: string; labe
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { start } = useFilterTransition()
 
   const [q, setQ] = useState(searchParams.get('q') ?? '')
   const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') ?? '')
@@ -48,7 +50,7 @@ export function StockFilters({ categories }: { categories: { value: string; labe
     else params.delete('categoryId')
     if (next.status !== 'todos') params.set('status', next.status)
     else params.delete('status')
-    router.push(`${pathname}?${params.toString()}`)
+    start(() => router.push(`${pathname}?${params.toString()}`))
   }
 
   // Evita que el efecto debounceado dispare un push espurio al montar (lo que

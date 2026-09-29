@@ -9,7 +9,7 @@ export function ProductCard({ product }: { product: PublicCatalogProduct }) {
     <article className="border border-border rounded-lg p-3 flex flex-col gap-3">
       <div className="relative aspect-square overflow-hidden rounded bg-border/30">
         {firstImage ? (
-          <Image src={firstImage.url} alt={product.name} fill className="object-cover" />
+          <Image src={firstImage.url} alt={product.name} fill sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" className="object-cover" />
         ) : (
           <div className="flex h-full items-center justify-center text-muted">
             <ImageOff className="size-8" />

@@ -94,7 +94,7 @@ export function AdjustStockDialog({
             <Input aria-label="Motivo" value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
           {error && <p className="text-sm text-danger">{error}</p>}
-          <Button onClick={handleSave} disabled={pending}>Guardar ajuste</Button>
+          <Button onClick={handleSave} loading={pending}>Guardar ajuste</Button>
         </div>
       </Dialog>
     </>

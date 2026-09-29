@@ -178,7 +178,7 @@ export function ProductForm(props: Props) {
 
         {error && <p className="text-sm text-danger">{error}</p>}
 
-        <Button type="submit" disabled={saving} className="w-full md:w-auto">
+        <Button type="submit" loading={saving} className="w-full md:w-auto">
           Guardar producto
         </Button>
       </form>
@@ -282,7 +282,7 @@ function ExistingVariantRow({ variant }: { variant: ProductDetail['variants'][nu
       </label>
 
       <div className="flex flex-col gap-2 sm:flex-row lg:col-span-6">
-        <Button type="button" size="sm" disabled={saving} className="w-full md:w-auto" onClick={handleSave}>
+        <Button type="button" size="sm" loading={saving} className="w-full md:w-auto" onClick={handleSave}>
           Guardar variante
         </Button>
         <Button
@@ -394,7 +394,7 @@ function AddVariantForm({ productId, initial }: { productId: string; initial: Va
         </label>
       </div>
       {error && <p className="text-sm text-danger">{error}</p>}
-      <Button type="button" disabled={saving} className="w-full md:w-auto" onClick={handleAdd}>
+      <Button type="button" loading={saving} className="w-full md:w-auto" onClick={handleAdd}>
         Agregar variante
       </Button>
     </div>

@@ -1,6 +1,7 @@
 'use client'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { Period } from '@/lib/period'
+import { useFilterTransition } from '@/components/ui/filter-transition'
 
 const OPTIONS: { value: Period; label: string }[] = [
   { value: 'day', label: 'Hoy' },
@@ -12,11 +13,12 @@ export function PeriodSelector({ period }: { period: Period }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { start } = useFilterTransition()
 
   function handleChange(value: Period) {
     const params = new URLSearchParams(searchParams.toString())
     params.set('period', value)
-    router.push(`${pathname}?${params.toString()}`)
+    start(() => router.push(`${pathname}?${params.toString()}`))
   }
 
   return (

@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useFilterTransition } from '@/components/ui/filter-transition'
 
 export function CatalogFilters({ categories }: { categories: { value: string; label: string }[] }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { start } = useFilterTransition()
 
   const [q, setQ] = useState(searchParams.get('q') ?? '')
   const [categoria, setCategoria] = useState(searchParams.get('categoria') ?? '')
@@ -15,10 +17,10 @@ export function CatalogFilters({ categories }: { categories: { value: string; la
       const params = new URLSearchParams()
       if (q) params.set('q', q)
       if (categoria) params.set('categoria', categoria)
-      router.push(`${pathname}?${params.toString()}`)
+      start(() => router.push(`${pathname}?${params.toString()}`))
     }, 300)
     return () => clearTimeout(timeout)
-  }, [q, categoria, pathname, router])
+  }, [q, categoria, pathname, router, start])
 
   return (
     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end">

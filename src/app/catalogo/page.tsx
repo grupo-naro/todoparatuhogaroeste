@@ -2,6 +2,7 @@ import { listPublicCatalog } from '@/server/queries/catalog'
 import { listCategoryOptions } from '@/server/queries/categories'
 import { CatalogFilters } from '@/components/catalogo/CatalogFilters'
 import { ProductGrid } from '@/components/catalogo/ProductGrid'
+import { FilterTransition, PendingFade } from '@/components/ui/filter-transition'
 
 export const metadata = {
   title: 'Catálogo — Jael Castillo · Todo para tu Hogar',
@@ -17,8 +18,10 @@ export default async function CatalogoPage({ searchParams }: { searchParams: Pro
   return (
     <section>
       <h1 className="text-xl font-semibold mb-4">Catálogo</h1>
-      <CatalogFilters categories={categories} />
-      <ProductGrid products={products} />
+      <FilterTransition>
+        <CatalogFilters categories={categories} />
+        <PendingFade><ProductGrid products={products} /></PendingFade>
+      </FilterTransition>
     </section>
   )
 }

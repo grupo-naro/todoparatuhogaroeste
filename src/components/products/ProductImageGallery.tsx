@@ -70,7 +70,7 @@ export function ProductImageGallery({ productId, images }: { productId: string; 
         {sorted.map((img, i) => (
           <div key={img.id} className="relative flex flex-col gap-1 rounded border border-border p-2">
             <div className="relative aspect-square overflow-hidden rounded bg-border/30">
-              <Image src={img.url} alt="" fill className="object-cover" />
+              <Image src={img.url} alt="" fill sizes="(min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw" className="object-cover" />
               {i === 0 && (
                 <span className="absolute left-1 top-1 rounded bg-primary px-1.5 py-0.5 text-xs text-primary-foreground">
                   Portada

@@ -1,6 +1,7 @@
 import type { AdminDashboardStats } from '@/server/queries/dashboard'
 import type { Period } from '@/lib/period'
 import { PeriodSelector } from './PeriodSelector'
+import { FilterTransition, PendingFade } from '@/components/ui/filter-transition'
 import { StatCard } from './StatCard'
 import { money, integer } from '@/lib/format'
 
@@ -8,7 +9,9 @@ export function AdminDashboard({ stats, period }: { stats: AdminDashboardStats; 
   return (
     <section>
       <h1 className="text-xl font-semibold mb-4">Inicio</h1>
+      <FilterTransition>
       <PeriodSelector period={period} />
+      <PendingFade>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard label="Total facturado" value={money(stats.totalFacturado)} />
         <StatCard label="Ventas" value={integer(stats.cantidadVentas)} />
@@ -28,6 +31,8 @@ export function AdminDashboard({ stats, period }: { stats: AdminDashboardStats; 
           ))}
         </ul>
       )}
+      </PendingFade>
+      </FilterTransition>
     </section>
   )
 }

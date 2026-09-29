@@ -27,7 +27,7 @@ export async function getAdminDashboardStats(period: Period): Promise<AdminDashb
       // criterio que el resto de la app — ver inventory.ts y el filtro "Sin
       // stock" de /deposito), así que también cuenta como stock bajo.
       where: { OR: [{ stock: { quantity: { lte: LOW_STOCK_THRESHOLD } } }, { stock: null }] },
-      include: { stock: true, product: { select: { name: true } } },
+      select: { id: true, name: true, stock: { select: { quantity: true } }, product: { select: { name: true } } },
     }),
   ])
 

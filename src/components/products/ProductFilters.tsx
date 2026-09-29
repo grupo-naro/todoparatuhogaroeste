@@ -3,11 +3,13 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
+import { useFilterTransition } from '@/components/ui/filter-transition'
 
 export function ProductFilters({ categories }: { categories: { value: string; label: string }[] }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { start } = useFilterTransition()
 
   const [q, setQ] = useState(searchParams.get('q') ?? '')
   const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') ?? '')
@@ -17,10 +19,10 @@ export function ProductFilters({ categories }: { categories: { value: string; la
       const params = new URLSearchParams()
       if (q) params.set('q', q)
       if (categoryId) params.set('categoryId', categoryId)
-      router.push(`${pathname}?${params.toString()}`)
+      start(() => router.push(`${pathname}?${params.toString()}`))
     }, 300)
     return () => clearTimeout(timeout)
-  }, [q, categoryId, pathname, router])
+  }, [q, categoryId, pathname, router, start])
 
   const categorySelect = (
     <Select

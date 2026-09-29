@@ -209,7 +209,8 @@ export function SaleCart() {
 
           <Button
             onClick={mode === 'venta' ? handleConfirm : () => setShowQuote(true)}
-            disabled={pending || cart.length === 0 || (mode === 'presupuesto' && !!unpricedLine)}
+            loading={pending}
+            disabled={cart.length === 0 || (mode === 'presupuesto' && !!unpricedLine)}
           >
             {mode === 'venta' ? (pending ? 'Guardando…' : 'Confirmar venta') : 'Generar presupuesto'}
           </Button>

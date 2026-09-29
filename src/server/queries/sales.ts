@@ -33,15 +33,27 @@ export type SaleRow = {
   paymentMethod: PaymentMethodName; total: number; cancelledAt: Date | null
 }
 
-export async function listSales(): Promise<SaleRow[]> {
-  const rows = await prisma.sale.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: { user: { select: { name: true } } },
-  })
-  return rows.map((s) => ({
+export const SALES_PAGE_SIZE = 25
+
+export async function listSales(
+  params: { page?: number; pageSize?: number } = {},
+): Promise<{ rows: SaleRow[]; total: number }> {
+  const pageSize = params.pageSize ?? SALES_PAGE_SIZE
+  const page = Math.max(1, params.page ?? 1)
+  const [total, sales] = await Promise.all([
+    prisma.sale.count(),
+    prisma.sale.findMany({
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: { user: { select: { name: true } } },
+    }),
+  ])
+  const rows = sales.map((s) => ({
     id: s.id, number: s.number, createdAt: s.createdAt, userName: s.user.name,
     paymentMethod: s.paymentMethod, total: toNumber(s.total) ?? 0, cancelledAt: s.cancelledAt,
   }))
+  return { rows, total }
 }
 
 export type SaleDetailItem = {

@@ -41,7 +41,8 @@ describe('listSales y getSale', () => {
         items: { create: [{ variantId: v1, quantity: 1, unitPrice: 300, subtotal: 300 }] },
       },
     })
-    const rows = await listSales()
+    const { rows, total } = await listSales()
+    expect(total).toBe(1)
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ number: sale.number, userName: 'Ana', paymentMethod: 'EFECTIVO', total: 300, cancelledAt: null })
 
@@ -50,6 +51,18 @@ describe('listSales y getSale', () => {
     expect(detail!.items).toEqual([
       { variantId: v1, productName: 'Sillón Milán', variantName: '2 cuerpos', quantity: 1, unitPrice: 300, subtotal: 300 },
     ])
+  })
+  it('listSales pagina y devuelve el total', async () => {
+    for (let i = 0; i < 3; i++) {
+      await prisma.sale.create({
+        data: { userId, paymentMethod: 'EFECTIVO', total: 10, items: { create: [{ variantId: v1, quantity: 1, unitPrice: 10, subtotal: 10 }] } },
+      })
+    }
+    const p1 = await listSales({ page: 1, pageSize: 2 })
+    const p2 = await listSales({ page: 2, pageSize: 2 })
+    expect(p1.total).toBe(3)
+    expect(p1.rows).toHaveLength(2)
+    expect(p2.rows).toHaveLength(1)
   })
   it('getSale devuelve null para un id inexistente', async () => {
     expect(await getSale('00000000-0000-0000-0000-000000000000')).toBeNull()

@@ -7,10 +7,12 @@ export type ProductRow = {
   defaultCost: number | null; defaultPrice: number | null; coverImageUrl: string | null
 }
 
+export const PRODUCTS_PAGE_SIZE = 25
+
 export async function listProducts(params: {
   q?: string; categoryId?: string; page?: number; pageSize?: number
 }) {
-  const pageSize = params.pageSize ?? 25
+  const pageSize = params.pageSize ?? PRODUCTS_PAGE_SIZE
   const page = Math.max(1, params.page ?? 1)
   const where = {
     ...(params.categoryId ? { categoryId: params.categoryId } : {}),

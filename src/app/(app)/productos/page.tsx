@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { requireRole } from '@/server/auth/guards'
-import { listProducts } from '@/server/queries/products'
+import { listProducts, PRODUCTS_PAGE_SIZE } from '@/server/queries/products'
 import { listCategoryOptions } from '@/server/queries/categories'
 import { ProductFilters } from '@/components/products/ProductFilters'
 import { ProductList } from '@/components/products/ProductList'
 import { Button } from '@/components/ui/button'
+import { Pagination } from '@/components/ui/pagination'
 import { FilterTransition, PendingFade } from '@/components/ui/filter-transition'
 
 export default async function ProductosPage({
@@ -12,7 +13,7 @@ export default async function ProductosPage({
 }: { searchParams: Promise<{ q?: string; categoryId?: string; page?: string }> }) {
   await requireRole(['ADMIN', 'DEPOSITO'])
   const sp = await searchParams
-  const page = Number(sp.page ?? '1') || 1
+  const page = Math.max(1, Math.floor(Number(sp.page ?? '1')) || 1)
   const [{ rows, total }, categories] = await Promise.all([
     listProducts({ q: sp.q, categoryId: sp.categoryId, page }),
     listCategoryOptions(),
@@ -25,7 +26,11 @@ export default async function ProductosPage({
       </div>
       <FilterTransition>
         <ProductFilters categories={categories} />
-        <PendingFade><ProductList rows={rows} /></PendingFade>
+        <PendingFade>
+          <ProductList rows={rows} />
+          <Pagination page={page} pageSize={PRODUCTS_PAGE_SIZE} total={total} basePath="/productos"
+            query={{ q: sp.q, categoryId: sp.categoryId }} />
+        </PendingFade>
       </FilterTransition>
     </section>
   )

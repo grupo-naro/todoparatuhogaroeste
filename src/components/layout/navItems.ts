@@ -1,4 +1,4 @@
-import { Package, Tags, Users, Warehouse, ShoppingCart, Contact, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, Package, Tags, Users, Warehouse, ShoppingCart, Contact, type LucideIcon } from 'lucide-react'
 import type { RoleName } from '@/lib/constants'
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; roles?: RoleName[] }
@@ -7,6 +7,7 @@ export type NavItem = { href: string; label: string; icon: LucideIcon; roles?: R
 // tanto el Sidebar de escritorio como el NavDrawer mobile. Sin `roles`, el
 // ítem es visible para cualquier usuario autenticado.
 const ALL: NavItem[] = [
+  { href: '/', label: 'Inicio', icon: LayoutDashboard, roles: ['ADMIN', 'VENDEDOR'] },
   { href: '/productos', label: 'Productos', icon: Package, roles: ['ADMIN', 'DEPOSITO'] },
   { href: '/categorias', label: 'Categorías', icon: Tags, roles: ['ADMIN', 'DEPOSITO'] },
   { href: '/deposito', label: 'Depósito', icon: Warehouse, roles: ['ADMIN', 'DEPOSITO'] },

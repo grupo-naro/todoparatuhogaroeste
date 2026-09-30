@@ -39,6 +39,11 @@ describe('navItemsFor', () => {
     expect(navItemsFor('ADMIN').map((i) => i.label)).toContain('Clientes')
     expect(navItemsFor('VENDEDOR').map((i) => i.label)).toContain('Clientes')
   })
+  it('Inicio va primero y solo lo ven ADMIN y VENDEDOR', () => {
+    expect(navItemsFor('ADMIN')[0].label).toBe('Inicio')
+    expect(navItemsFor('VENDEDOR')[0].label).toBe('Inicio')
+    expect(navItemsFor('DEPOSITO').map((i) => i.label)).not.toContain('Inicio')
+  })
   it('DEPOSITO no ve Clientes', () => {
     expect(navItemsFor('DEPOSITO').map((i) => i.label)).not.toContain('Clientes')
   })

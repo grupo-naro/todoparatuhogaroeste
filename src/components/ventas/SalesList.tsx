@@ -7,7 +7,7 @@ import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 export function SalesList({ sales }: { sales: SaleRow[] }) {
   return (
     <>
-      <div className="hidden md:block mt-4">
+      <div className="hidden lg:block mt-4">
         <Table>
           <Thead>
             <Tr>
@@ -33,11 +33,11 @@ export function SalesList({ sales }: { sales: SaleRow[] }) {
         </Table>
       </div>
 
-      <ul className="md:hidden mt-4 space-y-2">
+      <ul className="lg:hidden mt-4 grid gap-2 md:grid-cols-2">
         {sales.map((s) => (
           <li key={s.id}>
             <Link href={`/ventas/${s.id}`}>
-              <article className="border border-border rounded-lg bg-card p-3">
+              <article className="border border-border rounded-lg bg-card p-3 h-full active:bg-border/40 transition-colors">
                 <div className="flex items-center justify-between">
                   <strong>Ticket N° {s.number}</strong>
                   {s.cancelledAt && <span className="text-danger text-xs">Anulada</span>}
@@ -52,7 +52,7 @@ export function SalesList({ sales }: { sales: SaleRow[] }) {
             </Link>
           </li>
         ))}
-        {sales.length === 0 && <li className="text-center text-muted py-4">Sin ventas todavía</li>}
+        {sales.length === 0 && <li className="text-center text-muted py-4 md:col-span-2">Sin ventas todavía</li>}
       </ul>
     </>
   )

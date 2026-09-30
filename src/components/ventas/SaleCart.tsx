@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSale, searchSellableVariantsAction } from '@/server/actions/sales'
 import { findCustomerByPhoneAction } from '@/server/actions/customers'
@@ -32,18 +32,36 @@ export function SaleCart() {
   const [mode, setMode] = useState<'venta' | 'presupuesto'>('venta')
   const [showQuote, setShowQuote] = useState(false)
 
-  async function handleSearch(value: string) {
+  const searchSeq = useRef(0)
+  const phoneSeq = useRef(0)
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const phoneTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => { clearTimeout(searchTimer.current); clearTimeout(phoneTimer.current) }, [])
+
+  // Debounce + descarte de respuestas viejas: en celular cada tecla dispara un
+  // viaje al servidor y las respuestas pueden llegar desordenadas.
+  function handleSearch(value: string) {
     setQ(value)
+    clearTimeout(searchTimer.current)
+    const seq = ++searchSeq.current
     if (value.trim().length < 2) { setResults([]); return }
-    setResults(await searchSellableVariantsAction(value))
+    searchTimer.current = setTimeout(async () => {
+      const res = await searchSellableVariantsAction(value)
+      if (seq === searchSeq.current) setResults(res)
+    }, 250)
   }
 
-  async function handlePhoneChange(value: string) {
+  function handlePhoneChange(value: string) {
     setCustomerPhone(value)
     setCustomerName('')
+    clearTimeout(phoneTimer.current)
+    const seq = ++phoneSeq.current
     const digits = normalizePhone(value)
     if (digits.length < 6) { setFoundCustomer(null); return }
-    setFoundCustomer(await findCustomerByPhoneAction(value))
+    phoneTimer.current = setTimeout(async () => {
+      const res = await findCustomerByPhoneAction(value)
+      if (seq === phoneSeq.current) setFoundCustomer(res)
+    }, 250)
   }
 
   function addToCart(v: SellableVariant) {
@@ -57,6 +75,7 @@ export function SaleCart() {
         unitPrice: v.unitPrice, available: v.quantity, quantity: '1',
       }]
     })
+    searchSeq.current++
     setQ('')
     setResults([])
   }
@@ -154,24 +173,19 @@ export function SaleCart() {
 
           <ul className="flex flex-col gap-2">
             {cart.map((line) => (
-              <li key={line.variantId} className="flex items-center gap-3 border border-border rounded-lg p-3">
-                <div className="flex-1">
+              <li key={line.variantId} className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-border rounded-lg p-3">
+                <div className="flex-1 min-w-40">
                   <p className="text-sm font-medium">{line.productName} · {line.variantName}</p>
                   <p className="text-xs text-muted">{money(line.unitPrice)} c/u · quedan {line.available}</p>
                 </div>
                 <QuantityStepper value={line.quantity} onChange={(v) => updateQuantity(line.variantId, v)}
                   ariaLabel={`Cantidad (${line.productName} · ${line.variantName})`} />
                 <button type="button" aria-label={`Quitar ${line.productName} · ${line.variantName}`}
-                  onClick={() => removeLine(line.variantId)} className="min-h-11 min-w-11 text-muted hover:text-danger">×</button>
+                  onClick={() => removeLine(line.variantId)} className="min-h-11 min-w-11 text-xl text-muted hover:text-danger active:text-danger">×</button>
               </li>
             ))}
             {cart.length === 0 && <li className="text-center text-muted py-4">Todavía no agregaste productos</li>}
           </ul>
-
-          <div className="flex items-center justify-between border-t border-border pt-3">
-            <span className="font-medium">Total</span>
-            <span className="text-lg font-semibold">{money(total)}</span>
-          </div>
 
           <label className="flex flex-col gap-1">
             <span className="text-sm">Teléfono del cliente (opcional)</span>
@@ -207,13 +221,20 @@ export function SaleCart() {
 
           {error && <p className="text-sm text-danger">{error}</p>}
 
-          <Button
-            onClick={mode === 'venta' ? handleConfirm : () => setShowQuote(true)}
-            loading={pending}
-            disabled={cart.length === 0 || (mode === 'presupuesto' && !!unpricedLine)}
-          >
-            {mode === 'venta' ? (pending ? 'Guardando…' : 'Confirmar venta') : 'Generar presupuesto'}
-          </Button>
+          <div className="sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 bg-background border-t border-border flex flex-col gap-3"
+            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Total</span>
+              <span className="text-lg font-semibold">{money(total)}</span>
+            </div>
+            <Button
+              onClick={mode === 'venta' ? handleConfirm : () => setShowQuote(true)}
+              loading={pending}
+              disabled={cart.length === 0 || (mode === 'presupuesto' && !!unpricedLine)}
+            >
+              {mode === 'venta' ? (pending ? 'Guardando…' : 'Confirmar venta') : 'Generar presupuesto'}
+            </Button>
+          </div>
         </>
       )}
     </div>

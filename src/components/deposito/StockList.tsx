@@ -15,8 +15,8 @@ export function StockList({
 }) {
   return (
     <>
-      {/* ≥ md: tabla */}
-      <div className="hidden md:block mt-4">
+      {/* ≥ lg: tabla */}
+      <div className="hidden lg:block mt-4">
         <Table>
           <Thead>
             <StockTableHeader sort={sort} dir={dir} />
@@ -53,8 +53,8 @@ export function StockList({
         </Table>
       </div>
 
-      {/* < md: tarjetas */}
-      <ul className="md:hidden mt-4 space-y-2">
+      {/* < lg: tarjetas (1 col celular, 2 col tablet) */}
+      <ul className="lg:hidden mt-4 grid gap-2 md:grid-cols-2">
         {rows.map((r) => (
           <li key={r.variantId}>
             <article className="border border-border rounded-lg bg-card p-3">
@@ -74,9 +74,9 @@ export function StockList({
             </article>
           </li>
         ))}
-        {rows.length === 0 && <li className="text-center text-muted py-4">Sin resultados</li>}
+        {rows.length === 0 && <li className="text-center text-muted py-4 md:col-span-2">Sin resultados</li>}
       </ul>
-      <p className="md:hidden mt-3 font-medium">{totalVariants} variantes · {integer(totalUnits)} unidades</p>
+      <p className="lg:hidden mt-3 font-medium">{totalVariants} variantes · {integer(totalUnits)} unidades</p>
     </>
   )
 }

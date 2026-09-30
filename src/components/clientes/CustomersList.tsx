@@ -5,7 +5,7 @@ import { money, integer } from '@/lib/format'
 export function CustomersList({ customers }: { customers: CustomerRow[] }) {
   return (
     <>
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <Table>
           <Thead>
             <Tr>
@@ -30,7 +30,7 @@ export function CustomersList({ customers }: { customers: CustomerRow[] }) {
         </Table>
       </div>
 
-      <ul className="md:hidden space-y-2">
+      <ul className="lg:hidden grid gap-2 md:grid-cols-2">
         {customers.map((c) => (
           <li key={c.id}>
             <article className="border border-border rounded-lg bg-card p-3">
@@ -46,7 +46,7 @@ export function CustomersList({ customers }: { customers: CustomerRow[] }) {
             </article>
           </li>
         ))}
-        {customers.length === 0 && <li className="text-center text-muted py-4">Sin clientes todavía</li>}
+        {customers.length === 0 && <li className="text-center text-muted py-4 md:col-span-2">Sin clientes todavía</li>}
       </ul>
     </>
   )

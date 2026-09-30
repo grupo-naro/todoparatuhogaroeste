@@ -19,8 +19,8 @@ function CoverThumb({ url }: { url: string | null }) {
 export function ProductList({ rows }: { rows: ProductRow[] }) {
   return (
     <>
-      {/* ≥ md: tabla */}
-      <div className="hidden md:block mt-4">
+      {/* ≥ lg: tabla */}
+      <div className="hidden lg:block mt-4">
         <Table>
           <Thead>
             <Tr><Th>Foto</Th><Th>Producto</Th><Th>Categoría</Th><Th className="text-right">Variantes</Th>
@@ -42,8 +42,8 @@ export function ProductList({ rows }: { rows: ProductRow[] }) {
         </Table>
       </div>
 
-      {/* < md: tarjetas */}
-      <ul className="md:hidden mt-4 space-y-2">
+      {/* < lg: tarjetas (1 col celular, 2 col tablet) */}
+      <ul className="lg:hidden mt-4 grid gap-2 md:grid-cols-2">
         {rows.map((p) => (
           <li key={p.id}>
             <article className="border border-border rounded-lg bg-card p-3 flex gap-3">
@@ -60,7 +60,7 @@ export function ProductList({ rows }: { rows: ProductRow[] }) {
             </article>
           </li>
         ))}
-        {rows.length === 0 && <li className="text-center text-muted py-4">Sin resultados</li>}
+        {rows.length === 0 && <li className="text-center text-muted py-4 md:col-span-2">Sin resultados</li>}
       </ul>
     </>
   )

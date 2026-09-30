@@ -36,13 +36,15 @@ export type SaleRow = {
 export const SALES_PAGE_SIZE = 25
 
 export async function listSales(
-  params: { page?: number; pageSize?: number } = {},
+  params: { page?: number; pageSize?: number; userId?: string } = {},
 ): Promise<{ rows: SaleRow[]; total: number }> {
   const pageSize = params.pageSize ?? SALES_PAGE_SIZE
   const page = Math.max(1, params.page ?? 1)
+  const where = params.userId ? { userId: params.userId } : {}
   const [total, sales] = await Promise.all([
-    prisma.sale.count(),
+    prisma.sale.count({ where }),
     prisma.sale.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -66,9 +68,9 @@ export type SaleDetail = {
   items: SaleDetailItem[]
 }
 
-export async function getSale(id: string): Promise<SaleDetail | null> {
-  const s = await prisma.sale.findUnique({
-    where: { id },
+export async function getSale(id: string, opts: { userId?: string } = {}): Promise<SaleDetail | null> {
+  const s = await prisma.sale.findFirst({
+    where: { id, ...(opts.userId ? { userId: opts.userId } : {}) },
     include: {
       user: { select: { name: true } },
       cancelledBy: { select: { name: true } },

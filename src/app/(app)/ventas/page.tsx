@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Pagination } from '@/components/ui/pagination'
 
 export default async function VentasPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
-  await requireRole(['ADMIN', 'VENDEDOR'])
+  const session = await requireRole(['ADMIN', 'VENDEDOR'])
   const sp = await searchParams
   const page = Math.max(1, Math.floor(Number(sp.page ?? '1')) || 1)
-  const { rows: sales, total } = await listSales({ page })
+  const { rows: sales, total } = await listSales({ page, userId: session.role === 'VENDEDOR' ? session.sub : undefined })
   return (
     <section>
       <div className="flex items-center justify-between mb-4">

@@ -129,6 +129,19 @@ describe('cancelSale', () => {
     expect(await cancelSale(saleId)).toEqual({ ok: false, error: 'Esta venta ya fue anulada' })
   })
 
+  it('un vendedor no puede anular la venta de otro, pero un admin sí', async () => {
+    const other = await prisma.user.create({ data: { email: 'b@b.com', name: 'Bea', passwordHash: 'x', role: 'VENDEDOR' } })
+    const sale = await prisma.sale.create({
+      data: { userId: other.id, paymentMethod: 'EFECTIVO', total: 100, items: { create: [{ variantId: v1, quantity: 1, unitPrice: 100, subtotal: 100 }] } },
+    })
+    expect(await cancelSale(sale.id)).toEqual({ ok: false, error: 'Venta no encontrada' })
+    expect((await prisma.sale.findUniqueOrThrow({ where: { id: sale.id } })).cancelledAt).toBeNull()
+
+    vi.mocked((await import('@/server/auth/guards')).requireRole)
+      .mockResolvedValue({ sub: userId, role: 'ADMIN', name: 'Ana', mustChangePassword: false })
+    expect(await cancelSale(sale.id)).toEqual({ ok: true })
+  })
+
   it('rechaza un id inexistente', async () => {
     expect(await cancelSale('00000000-0000-0000-0000-000000000000'))
       .toEqual({ ok: false, error: 'Venta no encontrada' })

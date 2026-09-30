@@ -64,6 +64,23 @@ describe('listSales y getSale', () => {
     expect(p1.rows).toHaveLength(2)
     expect(p2.rows).toHaveLength(1)
   })
+  it('listSales y getSale con userId solo devuelven las ventas de ese usuario', async () => {
+    const other = await prisma.user.create({
+      data: { name: 'Bea', email: 'bea@test.com', passwordHash: 'x', role: 'VENDEDOR' },
+    })
+    const mine = await prisma.sale.create({
+      data: { userId, paymentMethod: 'EFECTIVO', total: 10, items: { create: [{ variantId: v1, quantity: 1, unitPrice: 10, subtotal: 10 }] } },
+    })
+    const theirs = await prisma.sale.create({
+      data: { userId: other.id, paymentMethod: 'EFECTIVO', total: 20, items: { create: [{ variantId: v1, quantity: 1, unitPrice: 20, subtotal: 20 }] } },
+    })
+    const list = await listSales({ userId })
+    expect(list.total).toBe(1)
+    expect(list.rows.map((r) => r.id)).toEqual([mine.id])
+    expect(await getSale(theirs.id, { userId })).toBeNull()
+    expect(await getSale(mine.id, { userId })).not.toBeNull()
+    expect(await getSale(theirs.id)).not.toBeNull()
+  })
   it('getSale devuelve null para un id inexistente', async () => {
     expect(await getSale('00000000-0000-0000-0000-000000000000')).toBeNull()
   })

@@ -130,7 +130,7 @@ export type ActionResult = { ok: true } | { ok: false; error: string }
 export async function cancelSale(id: string): Promise<ActionResult> {
   const session = await requireRole(['ADMIN', 'VENDEDOR'])
   const sale = await prisma.sale.findUnique({ where: { id }, include: { items: true } })
-  if (!sale) return { ok: false, error: 'Venta no encontrada' }
+  if (!sale || (session.role === 'VENDEDOR' && sale.userId !== session.sub)) return { ok: false, error: 'Venta no encontrada' }
   if (sale.cancelledAt) return { ok: false, error: 'Esta venta ya fue anulada' }
 
   await prisma.$transaction(async (tx) => {

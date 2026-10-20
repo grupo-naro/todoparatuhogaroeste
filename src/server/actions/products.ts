@@ -2,7 +2,7 @@
 import { revalidatePath } from 'next/cache'
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { del } from '@vercel/blob'
+import { deleteImages } from '@/server/cloudinary'
 import { prisma } from '@/server/db'
 import { requireRole } from '@/server/auth/guards'
 import { productSchema } from '@/server/validation/product'
@@ -97,7 +97,7 @@ export async function deleteProduct(id: string): Promise<SaveResult> {
   const hasHistory = product.variants.some((v) => (v.stock?.quantity ?? 0) > 0 || v._count.transactions > 0)
   if (hasHistory) return { ok: false, error: 'El producto tiene variantes con stock o movimientos registrados' }
 
-  if (product.images.length > 0) await del(product.images.map((img) => img.url))
+  if (product.images.length > 0) await deleteImages(product.images.map((img) => img.pathname))
 
   await prisma.$transaction([
     prisma.productVariant.deleteMany({ where: { productId: id } }),

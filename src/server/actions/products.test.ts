@@ -4,7 +4,7 @@ vi.mock('@/server/auth/guards', () => ({
   requireRole: vi.fn().mockResolvedValue({ sub: 'u1', role: 'ADMIN', name: 'A' }),
 }))
 const { del } = vi.hoisted(() => ({ del: vi.fn().mockResolvedValue(undefined) }))
-vi.mock('@vercel/blob', () => ({ del }))
+vi.mock('@/server/cloudinary', () => ({ deleteImages: del }))
 import { prisma, resetDb } from '@/test/db'
 import { createProduct, deleteProduct, updateProduct } from './products'
 import { requireRole } from '@/server/auth/guards'
@@ -144,12 +144,12 @@ describe('deleteProduct', () => {
       .toEqual({ ok: false, error: 'El producto tiene variantes con stock o movimientos registrados' })
   })
 
-  it('borra las fotos del producto en Blob antes de eliminarlo', async () => {
+  it('borra las fotos del producto en Cloudinary antes de eliminarlo', async () => {
     const { id } = await createProduct({ name: 'Mesa Roble', categoryId }) as { ok: true; id: string }
     await prisma.productImage.create({ data: { productId: id, url: 'https://blob.example/a.jpg', pathname: 'a', order: 0 } })
     await prisma.productImage.create({ data: { productId: id, url: 'https://blob.example/b.jpg', pathname: 'b', order: 1 } })
     expect(await deleteProduct(id)).toEqual({ ok: true, id })
-    expect(del).toHaveBeenCalledWith(['https://blob.example/a.jpg', 'https://blob.example/b.jpg'])
+    expect(del).toHaveBeenCalledWith(['a', 'b'])
   })
 
   it('sin fotos no llama a del()', async () => {

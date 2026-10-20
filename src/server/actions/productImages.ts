@@ -1,7 +1,6 @@
 'use server'
-import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
-import { put, del } from '@vercel/blob'
+import { uploadImage, deleteImages } from '@/server/cloudinary'
 import { prisma } from '@/server/db'
 import { requireRole } from '@/server/auth/guards'
 import type { SaveResult } from './products'
@@ -9,11 +8,7 @@ import type { SaveResult } from './products'
 export type { SaveResult }
 export type ActionResult = { ok: true } | { ok: false; error: string }
 
-const EXT_BY_MIME: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-}
+const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 function revalidateProduct(productId: string) {
@@ -25,22 +20,21 @@ export async function addProductImage(productId: string, formData: FormData): Pr
   await requireRole('ADMIN')
   const file = formData.get('file')
   if (!(file instanceof File)) return { ok: false, error: 'No se recibió ningún archivo' }
-  const ext = EXT_BY_MIME[file.type]
-  if (!ext) return { ok: false, error: 'El archivo debe ser una imagen (JPG, PNG o WebP)' }
+  if (!ALLOWED_MIME.has(file.type)) return { ok: false, error: 'El archivo debe ser una imagen (JPG, PNG o WebP)' }
   if (file.size > MAX_IMAGE_BYTES) return { ok: false, error: 'La imagen es demasiado pesada' }
 
-  let blob: { url: string; pathname: string }
+  let uploaded: { url: string; publicId: string }
   try {
-    blob = await put(`products/${productId}/${randomUUID()}.${ext}`, file, { access: 'public' })
+    uploaded = await uploadImage(file, `products/${productId}`)
   } catch (err) {
-    console.error('addProductImage: put() falló', err)
+    console.error('addProductImage: la subida a Cloudinary falló', err)
     return { ok: false, error: 'No se pudo subir la imagen, probá de nuevo' }
   }
 
   const created = await prisma.$transaction(async (tx) => {
     const agg = await tx.productImage.aggregate({ where: { productId }, _max: { order: true } })
     const order = (agg._max.order ?? -1) + 1
-    return tx.productImage.create({ data: { productId, url: blob.url, pathname: blob.pathname, order } })
+    return tx.productImage.create({ data: { productId, url: uploaded.url, pathname: uploaded.publicId, order } })
   })
   revalidateProduct(productId)
   return { ok: true, id: created.id }
@@ -49,7 +43,7 @@ export async function addProductImage(productId: string, formData: FormData): Pr
 export async function deleteProductImage(imageId: string): Promise<ActionResult> {
   await requireRole('ADMIN')
   const image = await prisma.productImage.findUniqueOrThrow({ where: { id: imageId } })
-  await del(image.url)
+  await deleteImages([image.pathname])
   await prisma.$transaction(async (tx) => {
     await tx.productImage.delete({ where: { id: imageId } })
     // Solo se borró una fila, así que a lo sumo las que quedan después del

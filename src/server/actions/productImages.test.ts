@@ -3,11 +3,14 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/server/auth/guards', () => ({
   requireRole: vi.fn().mockResolvedValue({ sub: 'admin1', role: 'ADMIN', name: 'Admin', mustChangePassword: false }),
 }))
-const { put, del } = vi.hoisted(() => ({
-  put: vi.fn(async (pathname: string) => ({ url: `https://blob.example/${pathname}`, pathname })),
-  del: vi.fn().mockResolvedValue(undefined),
+const { uploadImage, deleteImages } = vi.hoisted(() => ({
+  uploadImage: vi.fn(async (_file: File, folder: string) => {
+    const publicId = `${folder}/${Math.random().toString(36).slice(2)}`
+    return { url: `https://res.cloudinary.example/${publicId}.jpg`, publicId }
+  }),
+  deleteImages: vi.fn().mockResolvedValue(undefined),
 }))
-vi.mock('@vercel/blob', () => ({ put, del }))
+vi.mock('@/server/cloudinary', () => ({ uploadImage, deleteImages }))
 import { prisma, resetDb } from '@/test/db'
 import { addProductImage, deleteProductImage, reorderProductImages } from './productImages'
 
@@ -23,8 +26,8 @@ beforeEach(async () => {
   const c = await prisma.category.create({ data: { name: 'Mesas', slug: 'mesas' } })
   const p = await prisma.product.create({ data: { name: 'Mesa', categoryId: c.id } })
   productId = p.id
-  put.mockClear()
-  del.mockClear()
+  uploadImage.mockClear()
+  deleteImages.mockClear()
 })
 
 describe('addProductImage', () => {
@@ -33,17 +36,14 @@ describe('addProductImage', () => {
     expect(vi.mocked((await import('@/server/auth/guards')).requireRole)).toHaveBeenCalledWith('ADMIN')
   })
 
-  it('sube el archivo a Blob y crea la fila con order 0 para la primera foto', async () => {
+  it('sube el archivo a Cloudinary y crea la fila con order 0 para la primera foto', async () => {
     const res = await addProductImage(productId, fileFormData())
     expect(res.ok).toBe(true)
-    expect(put).toHaveBeenCalledWith(
-      expect.stringContaining(`products/${productId}/`),
-      expect.any(File),
-      { access: 'public' },
-    )
+    expect(uploadImage).toHaveBeenCalledWith(expect.any(File), `products/${productId}`)
     const rows = await prisma.productImage.findMany({ where: { productId } })
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ order: 0 })
+    expect(rows[0].pathname).toContain(`products/${productId}/`)
   })
 
   it('asigna order consecutivo a la segunda foto', async () => {
@@ -56,17 +56,17 @@ describe('addProductImage', () => {
   it('rechaza un tipo de archivo no permitido', async () => {
     const res = await addProductImage(productId, fileFormData('a.gif', 'image/gif'))
     expect(res).toEqual({ ok: false, error: 'El archivo debe ser una imagen (JPG, PNG o WebP)' })
-    expect(put).not.toHaveBeenCalled()
+    expect(uploadImage).not.toHaveBeenCalled()
   })
 
   it('rechaza un archivo demasiado pesado', async () => {
     const res = await addProductImage(productId, fileFormData('a.jpg', 'image/jpeg', 6 * 1024 * 1024))
     expect(res).toEqual({ ok: false, error: 'La imagen es demasiado pesada' })
-    expect(put).not.toHaveBeenCalled()
+    expect(uploadImage).not.toHaveBeenCalled()
   })
 
-  it('devuelve un error amigable si falla la subida a Blob', async () => {
-    put.mockRejectedValueOnce(new Error('network error'))
+  it('devuelve un error amigable si falla la subida a Cloudinary', async () => {
+    uploadImage.mockRejectedValueOnce(new Error('network error'))
     const res = await addProductImage(productId, fileFormData())
     expect(res).toEqual({ ok: false, error: 'No se pudo subir la imagen, probá de nuevo' })
     expect(await prisma.productImage.count({ where: { productId } })).toBe(0)
@@ -74,7 +74,7 @@ describe('addProductImage', () => {
 })
 
 describe('deleteProductImage', () => {
-  it('borra el blob (por url) y la fila, y reordena las restantes sin huecos', async () => {
+  it('borra la imagen en Cloudinary (por public_id) y la fila, y reordena las restantes sin huecos', async () => {
     await addProductImage(productId, fileFormData('a.jpg'))
     await addProductImage(productId, fileFormData('b.jpg'))
     await addProductImage(productId, fileFormData('c.jpg'))
@@ -83,7 +83,7 @@ describe('deleteProductImage', () => {
     const res = await deleteProductImage(first.id)
 
     expect(res).toEqual({ ok: true })
-    expect(del).toHaveBeenCalledWith(first.url)
+    expect(deleteImages).toHaveBeenCalledWith([first.pathname])
     const remaining = await prisma.productImage.findMany({ where: { productId }, orderBy: { order: 'asc' } })
     expect(remaining.map((r) => r.order)).toEqual([0, 1])
     expect(remaining[0].id).toBe(second.id)

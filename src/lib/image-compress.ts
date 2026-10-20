@@ -2,9 +2,9 @@ const MAX_DIMENSION = 1600
 const JPEG_QUALITY = 0.8
 
 // Redimensiona (si hace falta) y reencodea como JPEG en el browser antes de
-// subir, ya que Vercel Blob no hace transformaciones de imagen server-side
-// (a diferencia de Cloudinary). Si algo del pipeline de Canvas falla,
-// devuelve el archivo original en vez de bloquear la subida.
+// subir, para no mandar fotos de celular de varios MB por la red. Si algo
+// del pipeline de Canvas falla, devuelve el archivo original en vez de
+// bloquear la subida.
 export async function compressImage(file: File): Promise<File> {
   if (!file.type.startsWith('image/')) return file
   try {

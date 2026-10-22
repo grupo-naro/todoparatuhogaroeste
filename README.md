@@ -37,6 +37,8 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Estación de impresión del local
 
+**Atajo:** en la PC del local, ejecutar `scripts/estacion-impresion/instalar-estacion.bat` (pide la dirección del sitio y la clave) y crea los accesos directos del Escritorio e Inicio de Windows con todo lo de abajo ya configurado. Los pasos manuales siguen siendo:
+
 Cada venta confirmada y cada presupuesto generado se imprimen solos en la impresora A4 del local, sin importar desde qué celular o tablet se hayan cargado. Para eso una computadora del local deja abierta la pantalla `/impresion`.
 
 1. Dejar la impresora A4 como **predeterminada** en Windows.

@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
+import Image from 'next/image'
 import type { PrintableJob } from '@/server/printing/station'
 import { SaleDocument } from '@/components/ventas/SaleDocument'
 import { QuoteDocument } from '@/components/ventas/QuoteDocument'
 
 const POLL_MS = 5000
+const REQUEST_TIMEOUT_MS = 15000
 
 type Status =
   | { kind: 'inicio' }
@@ -28,9 +30,20 @@ export function PrintStation({ clave }: { clave: string }) {
     let timer: ReturnType<typeof setTimeout> | undefined
     const headers = { 'x-print-key': clave, 'content-type': 'application/json' }
 
+    // Sin tope, un pedido colgado (Wi-Fi caído) frena la estación sin avisar.
+    async function request(url: string, init: RequestInit): Promise<Response> {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+      try {
+        return await fetch(url, { ...init, signal: controller.signal })
+      } finally {
+        clearTimeout(timeout)
+      }
+    }
+
     async function markPrinted(id: string) {
       try {
-        await fetch('/api/impresion/marcar', { method: 'POST', headers, body: JSON.stringify({ id }) })
+        await request('/api/impresion/marcar', { method: 'POST', headers, body: JSON.stringify({ id }) })
       } catch {
         // se reintenta en la próxima revisión: el servidor lo sigue listando
       }
@@ -38,7 +51,7 @@ export function PrintStation({ clave }: { clave: string }) {
 
     async function check() {
       try {
-        const res = await fetch('/api/impresion/pendientes', { headers, cache: 'no-store' })
+        const res = await request('/api/impresion/pendientes', { headers, cache: 'no-store' })
         if (cancelled) return
         if (res.status === 401) {
           setStatus({ kind: 'clave' })
@@ -84,6 +97,7 @@ export function PrintStation({ clave }: { clave: string }) {
       <style>{'@media print { @page { size: A4; margin: 0 } }'}</style>
       <main className="min-h-full grid place-items-center p-6 print:hidden">
         <div className="w-full max-w-md border border-border rounded-lg p-6 space-y-3 text-center">
+          <Image src="/logo.png" alt="" width={40} height={40} priority className="mx-auto rounded-full" />
           <h1 className="text-xl font-semibold">Estación de impresión</h1>
           {status.kind === 'inicio' && <p className="text-muted">Conectando…</p>}
           {status.kind === 'ok' && (

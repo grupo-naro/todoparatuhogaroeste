@@ -25,6 +25,11 @@ describe('QuoteDocument', () => {
     expect(screen.getByText('Ana Gómez')).toBeInTheDocument()
   })
 
+  it('el logo se carga en modo eager para que esté listo al imprimir automáticamente', () => {
+    const { container } = render(<QuoteDocument quote={quote} />)
+    expect(container.querySelector('img')).toHaveAttribute('loading', 'eager')
+  })
+
   it('no muestra vendedora ni método de pago', () => {
     render(<QuoteDocument quote={quote} />)
     expect(screen.queryByText(/Vendedora/)).not.toBeInTheDocument()

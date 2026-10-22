@@ -87,6 +87,15 @@ describe('listPendingJobs', () => {
 })
 
 describe('markJobPrinted', () => {
+  it('también limpia los trabajos de más de 7 días (aunque no haya presupuestos nuevos)', async () => {
+    const old = await prisma.printJob.create({ data: { kind: 'PRESUPUESTO', payload: quote, createdAt: new Date(Date.now() - 8 * 24 * HOUR) } })
+    const job = await prisma.printJob.create({ data: { kind: 'PRESUPUESTO', payload: quote } })
+    await markJobPrinted(job.id)
+    expect(await prisma.printJob.findUnique({ where: { id: old.id } })).toBeNull()
+    expect(await prisma.printJob.findUnique({ where: { id: job.id } })).not.toBeNull()
+  })
+
+
   it('es idempotente: marcar dos veces conserva el primer printedAt', async () => {
     const job = await prisma.printJob.create({ data: { kind: 'PRESUPUESTO', payload: quote } })
     await markJobPrinted(job.id)

@@ -2,7 +2,7 @@ import 'server-only'
 import { timingSafeEqual } from 'node:crypto'
 import { prisma } from '@/server/db'
 import { getSale, type SaleDetail } from '@/server/queries/sales'
-import type { QuotePayload } from './queue'
+import { purgeOldPrintJobs, type QuotePayload } from './queue'
 
 export type PrintableJob =
   | { id: string; kind: 'VENTA'; sale: SaleDetail }
@@ -39,4 +39,5 @@ export async function listPendingJobs(now: Date = new Date()): Promise<Printable
 
 export async function markJobPrinted(id: string): Promise<void> {
   await prisma.printJob.updateMany({ where: { id, printedAt: null }, data: { printedAt: new Date() } })
+  await purgeOldPrintJobs()
 }

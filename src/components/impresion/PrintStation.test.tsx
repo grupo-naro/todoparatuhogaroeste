@@ -8,7 +8,7 @@ const quote = (id: string) => ({
 })
 
 let events: string[]
-let pendientes: () => Promise<Response>
+let pendientes: (signal?: AbortSignal) => Promise<Response>
 let marcar: (id: string) => Promise<Response>
 const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }))
 
@@ -18,7 +18,7 @@ beforeEach(() => {
   marcar = (id) => { events.push(`mark:${id}`); return json({ ok: true }) }
   pendientes = () => json({ jobs: [] })
   vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => {
-    if (url.includes('/pendientes')) { events.push('fetch'); return pendientes() }
+    if (url.includes('/pendientes')) { events.push('fetch'); return pendientes(init?.signal ?? undefined) }
     return marcar(JSON.parse(String(init?.body)).id)
   }))
   vi.spyOn(window, 'print').mockImplementation(() => { events.push('print') })
@@ -64,8 +64,20 @@ describe('PrintStation', () => {
   it('una revisión lenta no dispara otra encima', async () => {
     pendientes = () => new Promise<Response>(() => {})
     render(<PrintStation clave="k" />)
-    await tick(30000)
+    await tick(10000)
     expect(events.filter((e) => e === 'fetch')).toHaveLength(1)
+  })
+
+  it('un pedido colgado se corta a los 15 s, avisa "Sin conexión" y vuelve a intentar', async () => {
+    pendientes = (signal) => new Promise<Response>((_, reject) => {
+      signal?.addEventListener('abort', () => reject(new DOMException('abort', 'AbortError')))
+    })
+    render(<PrintStation clave="k" />)
+    await tick(15000)
+    expect(screen.getByText(/Sin conexión/)).toBeInTheDocument()
+    pendientes = () => json({ jobs: [] })
+    await tick(5000)
+    expect(screen.getByText(/Conectada/)).toBeInTheDocument()
   })
 
   it('con 401 muestra "Clave incorrecta"', async () => {

@@ -12,7 +12,7 @@ export function SaleDocument({ sale }: { sale: SaleDocumentData }) {
   return (
     <div className="border border-border rounded-lg p-4 print:border-0 print:p-0">
       <div className="flex items-center gap-3 mb-3">
-        <Image src="/logo.png" alt="" width={40} height={40} className="rounded-full" />
+        <Image src="/logo.png" alt="" width={40} height={40} loading="eager" className="rounded-full" />
         <div>
           <p className="font-semibold">Jael Castillo — Todo para tu Hogar</p>
           <p className="text-xs text-muted">Ticket N° {sale.number} · {formatDate(sale.createdAt)}</p>

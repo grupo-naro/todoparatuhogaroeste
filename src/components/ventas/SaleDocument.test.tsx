@@ -28,6 +28,11 @@ describe('SaleDocument', () => {
     expect(screen.getByText(/Venta anulada el/)).toHaveTextContent(/por Jael/)
   })
 
+  it('el logo se carga en modo eager para que esté listo al imprimir automáticamente', () => {
+    const { container } = render(<SaleDocument sale={sale} />)
+    expect(container.querySelector('img')).toHaveAttribute('loading', 'eager')
+  })
+
   it('no muestra la leyenda de anulada en una venta normal', () => {
     render(<SaleDocument sale={sale} />)
     expect(screen.queryByText(/Venta anulada/)).not.toBeInTheDocument()

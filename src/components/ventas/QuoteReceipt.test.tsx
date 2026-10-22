@@ -40,9 +40,16 @@ describe('QuoteReceipt', () => {
     expect(screen.getByText(/Presupuesto sin cargo/)).toBeInTheDocument()
   })
 
-  it('llama a window.print() al montarse', () => {
+  it('no imprime solo al montarse (lo hace la estación del local)', () => {
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {})
     render(<QuoteReceipt lines={lines} total={600} onNuevoPresupuesto={vi.fn()} />)
+    expect(printSpy).not.toHaveBeenCalled()
+  })
+
+  it('el botón "Imprimir" manual llama a window.print()', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {})
+    render(<QuoteReceipt lines={lines} total={600} onNuevoPresupuesto={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Imprimir' }))
     expect(printSpy).toHaveBeenCalledTimes(1)
   })
 

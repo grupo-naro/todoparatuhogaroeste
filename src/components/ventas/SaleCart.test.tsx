@@ -62,7 +62,7 @@ describe('SaleCart', () => {
     await userEvent.click(await findResultButton())
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar venta' }))
     expect(createSale).toHaveBeenCalledWith({ items: [{ variantId: 'v1', quantity: 1 }], paymentMethod: 'EFECTIVO' })
-    expect(push).toHaveBeenCalledWith('/ventas/s1?justCreated=1')
+    expect(push).toHaveBeenCalledWith('/ventas/s1')
   })
 
   it('si createSale falla, muestra el error y no vacía el carrito', async () => {

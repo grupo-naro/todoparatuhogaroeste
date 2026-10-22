@@ -135,7 +135,7 @@ export function SaleCart() {
       setError(res.error)
       return
     }
-    router.push(`/ventas/${res.saleId}?justCreated=1`)
+    router.push(`/ventas/${res.saleId}`)
   }
 
   return (

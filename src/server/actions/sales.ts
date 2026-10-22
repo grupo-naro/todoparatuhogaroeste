@@ -5,6 +5,7 @@ import { requireRole } from '@/server/auth/guards'
 import { effectivePrice, toNumber } from '@/lib/pricing'
 import { normalizePhone } from '@/lib/phone'
 import { createSaleSchema } from '@/server/validation/sales'
+import { enqueueSalePrint } from '@/server/printing/queue'
 import { searchSellableVariants, type SellableVariant } from '@/server/queries/sales'
 
 export type CreateSaleResult =
@@ -109,6 +110,8 @@ export async function createSale(input: unknown): Promise<CreateSaleResult> {
         },
       })
     }
+
+    await enqueueSalePrint(tx, sale.id)
 
     return { ok: true, sale }
   })

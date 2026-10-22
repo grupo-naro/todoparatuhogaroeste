@@ -204,3 +204,19 @@ describe('createSale — cliente', () => {
     expect(await prisma.sale.count()).toBe(0)
   })
 })
+
+describe('createSale — impresión', () => {
+  it('encola exactamente un trabajo VENTA con el id de la venta', async () => {
+    const res = await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO' })
+    expect(res.ok).toBe(true)
+    const jobs = await prisma.printJob.findMany()
+    expect(jobs).toHaveLength(1)
+    expect(jobs[0]).toMatchObject({ kind: 'VENTA', saleId: (res as { ok: true; saleId: string }).saleId, printedAt: null })
+  })
+
+  it('no deja ningún trabajo si la venta falla por falta de stock', async () => {
+    const res = await createSale({ items: [{ variantId: v2, quantity: 99 }], paymentMethod: 'EFECTIVO' })
+    expect(res.ok).toBe(false)
+    expect(await prisma.printJob.count()).toBe(0)
+  })
+})

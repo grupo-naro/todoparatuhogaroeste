@@ -44,10 +44,12 @@ Cada venta confirmada y cada presupuesto generado se imprimen solos en la impres
 3. Crear un acceso directo a Chrome con este destino (reemplazar el sitio y la clave):
 
    ```
-   chrome.exe --kiosk-printing --app="https://SITIO/impresion?clave=PRINT_STATION_KEY"
+   "C:Program FilesGoogleChromeApplicationchrome.exe" --kiosk-printing --user-data-dir="C:estacion-impresion" --app="https://SITIO/impresion?clave=PRINT_STATION_KEY"
    ```
 
-   `--kiosk-printing` hace que `window.print()` mande directo a la impresora predeterminada, sin cuadro de diálogo.
+   - `--kiosk-printing` hace que `window.print()` mande directo a la impresora predeterminada, sin cuadro de diálogo.
+   - `--user-data-dir` abre la estación con su propio perfil. Es necesario: si ya hay un Chrome abierto, el modo silencioso se ignora y aparece el cuadro "Imprimir".
+   - La impresora predeterminada debe ser la A4 física (no "Microsoft Print to PDF").
 4. Abrir ese acceso directo al encender la PC y no cerrarlo durante el horario de atención.
 
 Notas:

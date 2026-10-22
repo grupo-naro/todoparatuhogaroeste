@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
@@ -10,6 +10,9 @@ const { createSale, searchSellableVariantsAction } = vi.hoisted(() => ({
   searchSellableVariantsAction: vi.fn(),
 }))
 vi.mock('@/server/actions/sales', () => ({ createSale, searchSellableVariantsAction }))
+
+const { enqueueQuote } = vi.hoisted(() => ({ enqueueQuote: vi.fn() }))
+vi.mock('@/server/actions/quotes', () => ({ enqueueQuote }))
 
 const { findCustomerByPhoneAction } = vi.hoisted(() => ({ findCustomerByPhoneAction: vi.fn() }))
 vi.mock('@/server/actions/customers', () => ({ findCustomerByPhoneAction }))
@@ -126,6 +129,8 @@ describe('SaleCart — cliente', () => {
 })
 
 describe('SaleCart — modo presupuesto', () => {
+  beforeEach(() => { enqueueQuote.mockReset(); enqueueQuote.mockResolvedValue({ ok: true }) })
+
   it('el toggle cambia el texto del botón y oculta el método de pago', async () => {
     render(<SaleCart />)
     expect(screen.getByRole('button', { name: 'Confirmar venta' })).toBeInTheDocument()
@@ -148,6 +153,32 @@ describe('SaleCart — modo presupuesto', () => {
     expect(screen.getByRole('heading', { name: 'Presupuesto' })).toBeInTheDocument()
     expect(screen.getByText(/Sillón Milán/)).toBeInTheDocument()
     expect(createSale).not.toHaveBeenCalled()
+  })
+
+  it('encola el presupuesto con las líneas antes de mostrar el comprobante', async () => {
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    render(<SaleCart />)
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.click(screen.getByRole('button', { name: 'Generar presupuesto' }))
+
+    expect(enqueueQuote).toHaveBeenCalledWith({ items: [{ variantId: 'v1', quantity: 1 }] })
+    expect(await screen.findByRole('heading', { name: 'Presupuesto' })).toBeInTheDocument()
+  })
+
+  it('si la acción falla muestra el error y no muestra el comprobante', async () => {
+    enqueueQuote.mockResolvedValue({ ok: false, error: 'No se pudo encolar' })
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    render(<SaleCart />)
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.click(screen.getByRole('button', { name: 'Generar presupuesto' }))
+
+    expect(await screen.findByText('No se pudo encolar')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Presupuesto' })).not.toBeInTheDocument()
   })
 
   it('cambiar de modo con el carrito cargado no lo vacía', async () => {

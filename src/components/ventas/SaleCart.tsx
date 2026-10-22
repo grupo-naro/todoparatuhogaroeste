@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createSale, searchSellableVariantsAction } from '@/server/actions/sales'
+import { enqueueQuote } from '@/server/actions/quotes'
 import { findCustomerByPhoneAction } from '@/server/actions/customers'
 import type { SellableVariant } from '@/server/queries/sales'
 import { normalizePhone } from '@/lib/phone'
@@ -106,6 +107,19 @@ export function SaleCart() {
     setCustomerName('')
     setFoundCustomer(null)
     setShowQuote(false)
+  }
+
+  async function handleQuote() {
+    setError(null)
+    setPending(true)
+    const items = cart.map((l) => ({ variantId: l.variantId, quantity: Number(l.quantity) || 0 }))
+    const res = await enqueueQuote({ items, ...(quoteCustomerName ? { customerName: quoteCustomerName } : {}) })
+    setPending(false)
+    if (!res.ok) {
+      setError(res.error)
+      return
+    }
+    setShowQuote(true)
   }
 
   async function handleConfirm() {
@@ -228,7 +242,7 @@ export function SaleCart() {
               <span className="text-lg font-semibold">{money(total)}</span>
             </div>
             <Button
-              onClick={mode === 'venta' ? handleConfirm : () => setShowQuote(true)}
+              onClick={mode === 'venta' ? handleConfirm : handleQuote}
               loading={pending}
               disabled={cart.length === 0 || (mode === 'presupuesto' && !!unpricedLine)}
             >

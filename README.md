@@ -34,3 +34,26 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Estación de impresión del local
+
+Cada venta confirmada y cada presupuesto generado se imprimen solos en la impresora A4 del local, sin importar desde qué celular o tablet se hayan cargado. Para eso una computadora del local deja abierta la pantalla `/impresion`.
+
+1. Dejar la impresora A4 como **predeterminada** en Windows.
+2. Definir `PRINT_STATION_KEY` (una clave larga y aleatoria) en `.env` y en las variables de entorno de Netlify.
+3. Crear un acceso directo a Chrome con este destino (reemplazar el sitio y la clave):
+
+   ```
+   chrome.exe --kiosk-printing --app="https://SITIO/impresion?clave=PRINT_STATION_KEY"
+   ```
+
+   `--kiosk-printing` hace que `window.print()` mande directo a la impresora predeterminada, sin cuadro de diálogo.
+4. Abrir ese acceso directo al encender la PC y no cerrarlo durante el horario de atención.
+
+Notas:
+
+- Debe haber **una sola** estación abierta; con dos, el mismo comprobante saldría dos veces.
+- Si la PC está apagada o sin internet, los trabajos esperan y salen al volver, pero solo los de las últimas 12 horas.
+- Los trabajos y los presupuestos guardados se borran solos a los 7 días.
+- Los celulares y tablets conservan el botón "Imprimir" manual en cada comprobante.
+- Las migraciones de la base real se aplican con `pnpm db:deploy`; las de la base de test con `pnpm test:db:migrate`.

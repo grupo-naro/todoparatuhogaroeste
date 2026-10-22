@@ -65,6 +65,7 @@ export type SaleDetailItem = {
 export type SaleDetail = {
   id: string; number: number; createdAt: Date; userName: string
   paymentMethod: PaymentMethodName; total: number; cancelledAt: Date | null; cancelledByName: string | null
+  shippingAddress: string | null
   items: SaleDetailItem[]
 }
 
@@ -82,6 +83,7 @@ export async function getSale(id: string, opts: { userId?: string } = {}): Promi
     id: s.id, number: s.number, createdAt: s.createdAt, userName: s.user.name,
     paymentMethod: s.paymentMethod, total: toNumber(s.total) ?? 0,
     cancelledAt: s.cancelledAt, cancelledByName: s.cancelledBy?.name ?? null,
+    shippingAddress: s.shippingAddress,
     items: s.items.map((i) => ({
       variantId: i.variantId, productName: i.variant.product.name, variantName: i.variant.name,
       quantity: i.quantity, unitPrice: toNumber(i.unitPrice) ?? 0, subtotal: toNumber(i.subtotal) ?? 0,

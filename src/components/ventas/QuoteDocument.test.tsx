@@ -30,6 +30,24 @@ describe('QuoteDocument', () => {
     expect(container.querySelector('img')).toHaveAttribute('loading', 'eager')
   })
 
+  it('muestra "Envío a" solo cuando hay dirección', () => {
+    const { rerender } = render(<QuoteDocument quote={quote} />)
+    expect(screen.queryByText(/Envío a/)).not.toBeInTheDocument()
+    rerender(<QuoteDocument quote={{ ...quote, shippingAddress: 'Av. Siempreviva 742, Merlo' }} />)
+    expect(screen.getByText(/Envío a/)).toHaveTextContent('Av. Siempreviva 742, Merlo')
+  })
+
+  it('incluye el pie con Instagram y contactos', () => {
+    render(<QuoteDocument quote={quote} />)
+    expect(screen.getByText(/@todoparatuhogar_oeste/)).toBeInTheDocument()
+    expect(screen.getByText(/Lourdes/)).toBeInTheDocument()
+  })
+
+  it('tiene la hoja A4 como contenedor de impresión', () => {
+    const { container } = render(<QuoteDocument quote={quote} />)
+    expect(container.firstElementChild).toHaveClass('a4-sheet')
+  })
+
   it('no muestra vendedora ni método de pago', () => {
     render(<QuoteDocument quote={quote} />)
     expect(screen.queryByText(/Vendedora/)).not.toBeInTheDocument()

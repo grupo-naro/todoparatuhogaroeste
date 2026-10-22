@@ -94,7 +94,6 @@ export function PrintStation({ clave }: { clave: string }) {
 
   return (
     <>
-      <style>{'@media print { @page { size: A4; margin: 0 } }'}</style>
       <main className="min-h-full grid place-items-center p-6 print:hidden">
         <div className="w-full max-w-md border border-border rounded-lg p-6 space-y-3 text-center">
           <Image src="/logo.png" alt="" width={40} height={40} priority className="mx-auto rounded-full" />
@@ -116,11 +115,7 @@ export function PrintStation({ clave }: { clave: string }) {
         </div>
       </main>
       <div className="hidden print:block">
-        {current && (
-          <div className="mx-auto max-w-[180mm] p-[15mm]">
-            {current.kind === 'VENTA' ? <SaleDocument sale={current.sale} /> : <QuoteDocument quote={current.quote} />}
-          </div>
-        )}
+        {current && (current.kind === 'VENTA' ? <SaleDocument sale={current.sale} /> : <QuoteDocument quote={current.quote} />)}
       </div>
     </>
   )

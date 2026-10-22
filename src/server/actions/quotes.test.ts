@@ -58,3 +58,23 @@ describe('enqueueQuote', () => {
     expect(vi.mocked((await import('@/server/auth/guards')).requireRole)).toHaveBeenCalledWith(['ADMIN', 'VENDEDOR'])
   })
 })
+
+describe('enqueueQuote — dirección de envío', () => {
+  it('guarda la dirección recortada en el payload', async () => {
+    await enqueueQuote({ items: [{ variantId: v1, quantity: 1 }], shippingAddress: ' Av. Siempreviva 742 ' })
+    const payload = (await prisma.printJob.findFirstOrThrow()).payload as QuotePayload
+    expect(payload.shippingAddress).toBe('Av. Siempreviva 742')
+  })
+
+  it('sin dirección el payload tiene null', async () => {
+    await enqueueQuote({ items: [{ variantId: v1, quantity: 1 }] })
+    const payload = (await prisma.printJob.findFirstOrThrow()).payload as QuotePayload
+    expect(payload.shippingAddress).toBeNull()
+  })
+
+  it('rechaza una dirección de más de 200 caracteres', async () => {
+    const res = await enqueueQuote({ items: [{ variantId: v1, quantity: 1 }], shippingAddress: 'x'.repeat(201) })
+    expect(res.ok).toBe(false)
+    expect(await prisma.printJob.count()).toBe(0)
+  })
+})

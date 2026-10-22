@@ -85,3 +85,18 @@ describe('listSales y getSale', () => {
     expect(await getSale('00000000-0000-0000-0000-000000000000')).toBeNull()
   })
 })
+
+describe('getSale — dirección de envío', () => {
+  it('devuelve la dirección guardada y null cuando no hay', async () => {
+    const withAddress = await prisma.sale.create({
+      data: { userId, paymentMethod: 'EFECTIVO', total: 10, shippingAddress: 'Av. Siempreviva 742',
+        items: { create: [{ variantId: v1, quantity: 1, unitPrice: 10, subtotal: 10 }] } },
+    })
+    const without = await prisma.sale.create({
+      data: { userId, paymentMethod: 'EFECTIVO', total: 10,
+        items: { create: [{ variantId: v1, quantity: 1, unitPrice: 10, subtotal: 10 }] } },
+    })
+    expect((await getSale(withAddress.id))?.shippingAddress).toBe('Av. Siempreviva 742')
+    expect((await getSale(without.id))?.shippingAddress).toBeNull()
+  })
+})

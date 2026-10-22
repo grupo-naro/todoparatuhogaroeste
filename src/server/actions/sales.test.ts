@@ -220,3 +220,27 @@ describe('createSale — impresión', () => {
     expect(await prisma.printJob.count()).toBe(0)
   })
 })
+
+describe('createSale — dirección de envío', () => {
+  it('guarda la dirección recortada', async () => {
+    const res = await createSale({
+      items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO', shippingAddress: '  Av. Siempreviva 742, Merlo  ',
+    })
+    expect(res.ok).toBe(true)
+    const sale = await prisma.sale.findFirstOrThrow()
+    expect(sale.shippingAddress).toBe('Av. Siempreviva 742, Merlo')
+  })
+
+  it('sin dirección (o vacía) guarda null', async () => {
+    await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO', shippingAddress: '   ' })
+    expect((await prisma.sale.findFirstOrThrow()).shippingAddress).toBeNull()
+  })
+
+  it('rechaza una dirección de más de 200 caracteres y no crea la venta', async () => {
+    const res = await createSale({
+      items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO', shippingAddress: 'x'.repeat(201),
+    })
+    expect(res.ok).toBe(false)
+    expect(await prisma.sale.count()).toBe(0)
+  })
+})

@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { PAYMENT_METHODS } from '@/lib/constants'
 
+export const shippingAddressSchema = z.string().trim().max(200, 'La dirección es demasiado larga').optional()
+
 export const saleItemInputSchema = z.object({
   variantId: z.string().uuid(),
   quantity: z.coerce.number().int('Debe ser un entero').min(1, 'Mínimo 1 unidad'),
@@ -11,4 +13,5 @@ export const createSaleSchema = z.object({
   paymentMethod: z.enum(PAYMENT_METHODS, { message: 'Elegí un método de pago' }),
   customerPhone: z.string().trim().optional(),
   customerName: z.string().trim().optional(),
+  shippingAddress: shippingAddressSchema,
 })

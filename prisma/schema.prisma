@@ -137,6 +137,7 @@ model Sale {
   customerId    String?       @db.Uuid
   customer      Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
   total         Decimal       @db.Decimal(12, 2)
+  shippingAddress String?
   cancelledAt   DateTime?
   cancelledById String?       @db.Uuid
   cancelledBy   User?         @relation("SaleCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)

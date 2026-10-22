@@ -65,6 +65,19 @@ describe('SaleCart', () => {
     expect(push).toHaveBeenCalledWith('/ventas/s1')
   })
 
+  it('con dirección de envío la manda a createSale (recortada)', async () => {
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    createSale.mockResolvedValue({ ok: true, saleId: 's1', number: 7 })
+    render(<SaleCart />)
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.type(screen.getByLabelText('Dirección de envío (opcional)'), '  Av. Siempreviva 742  ')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar venta' }))
+    expect(createSale).toHaveBeenCalledWith({
+      items: [{ variantId: 'v1', quantity: 1 }], paymentMethod: 'EFECTIVO', shippingAddress: 'Av. Siempreviva 742',
+    })
+  })
+
   it('si createSale falla, muestra el error y no vacía el carrito', async () => {
     searchSellableVariantsAction.mockResolvedValue([variant])
     createSale.mockResolvedValue({ ok: false, error: 'No hay stock suficiente de Sillón Milán · 2 cuerpos (quedan 0)' })
@@ -179,6 +192,22 @@ describe('SaleCart — modo presupuesto', () => {
 
     expect(await screen.findByText('No se pudo encolar')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Presupuesto' })).not.toBeInTheDocument()
+  })
+
+  it('el presupuesto manda la dirección de envío y la muestra en el comprobante', async () => {
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    render(<SaleCart />)
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+    await userEvent.type(screen.getByLabelText('Dirección de envío (opcional)'), 'Av. Siempreviva 742')
+    await userEvent.click(screen.getByRole('button', { name: 'Generar presupuesto' }))
+
+    expect(enqueueQuote).toHaveBeenCalledWith({
+      items: [{ variantId: 'v1', quantity: 1 }], shippingAddress: 'Av. Siempreviva 742',
+    })
+    expect(await screen.findByText(/Envío a/)).toHaveTextContent('Av. Siempreviva 742')
   })
 
   it('cambiar de modo con el carrito cargado no lo vacía', async () => {

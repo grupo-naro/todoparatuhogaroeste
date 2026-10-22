@@ -6,6 +6,7 @@ export type QuotePayload = {
   lines: { productName: string; variantName: string; unitPrice: number; quantity: number }[]
   total: number
   customerName: string | null
+  shippingAddress?: string | null
   issuedAt: string
 }
 

@@ -34,6 +34,14 @@ describe('QuoteReceipt', () => {
     expect(screen.queryByText(/Método de pago/)).not.toBeInTheDocument()
   })
 
+  it('muestra "Envío a" solo si se pasa shippingAddress', () => {
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    const { rerender } = render(<QuoteReceipt lines={lines} total={600} onNuevoPresupuesto={vi.fn()} />)
+    expect(screen.queryByText(/Envío a/)).not.toBeInTheDocument()
+    rerender(<QuoteReceipt lines={lines} total={600} shippingAddress="Av. Siempreviva 742" onNuevoPresupuesto={vi.fn()} />)
+    expect(screen.getByText(/Envío a/)).toHaveTextContent('Av. Siempreviva 742')
+  })
+
   it('muestra el texto fijo del pie', () => {
     vi.spyOn(window, 'print').mockImplementation(() => {})
     render(<QuoteReceipt lines={lines} total={600} onNuevoPresupuesto={vi.fn()} />)

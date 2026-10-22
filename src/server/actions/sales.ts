@@ -93,6 +93,7 @@ export async function createSale(input: unknown): Promise<CreateSaleResult> {
         userId: session.sub,
         paymentMethod: parsed.data.paymentMethod,
         customerId,
+        shippingAddress: parsed.data.shippingAddress || null,
         total,
         items: { create: lines },
       },

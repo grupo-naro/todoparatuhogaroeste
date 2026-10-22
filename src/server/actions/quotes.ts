@@ -3,12 +3,13 @@ import { z } from 'zod'
 import { prisma } from '@/server/db'
 import { requireRole } from '@/server/auth/guards'
 import { effectivePrice, toNumber } from '@/lib/pricing'
-import { saleItemInputSchema } from '@/server/validation/sales'
+import { saleItemInputSchema, shippingAddressSchema } from '@/server/validation/sales'
 import { enqueueQuotePrint, type QuotePayload } from '@/server/printing/queue'
 
 const quoteSchema = z.object({
   items: z.array(saleItemInputSchema).min(1, 'Agregá al menos un producto'),
   customerName: z.string().trim().optional(),
+  shippingAddress: shippingAddressSchema,
 })
 
 export type EnqueueQuoteResult = { ok: true } | { ok: false; error: string }
@@ -46,6 +47,7 @@ export async function enqueueQuote(input: unknown): Promise<EnqueueQuoteResult> 
     lines,
     total,
     customerName: parsed.data.customerName || null,
+    shippingAddress: parsed.data.shippingAddress || null,
     issuedAt: new Date().toISOString(),
   })
   return { ok: true }

@@ -29,6 +29,7 @@ export function SaleCart() {
   const [pending, setPending] = useState(false)
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerName, setCustomerName] = useState('')
+  const [shippingAddress, setShippingAddress] = useState('')
   const [foundCustomer, setFoundCustomer] = useState<{ id: string; name: string; phone: string } | null>(null)
   const [mode, setMode] = useState<'venta' | 'presupuesto'>('venta')
   const [showQuote, setShowQuote] = useState(false)
@@ -95,6 +96,7 @@ export function SaleCart() {
   const phoneDigits = normalizePhone(customerPhone)
   const matchedCustomer = foundCustomer?.phone === phoneDigits ? foundCustomer : null
   const quoteCustomerName = matchedCustomer?.name || customerName.trim() || undefined
+  const address = shippingAddress.trim()
 
   function handleModeChange(next: 'venta' | 'presupuesto') {
     setMode(next)
@@ -105,6 +107,7 @@ export function SaleCart() {
     setCart([])
     setCustomerPhone('')
     setCustomerName('')
+    setShippingAddress('')
     setFoundCustomer(null)
     setShowQuote(false)
   }
@@ -113,7 +116,11 @@ export function SaleCart() {
     setError(null)
     setPending(true)
     const items = cart.map((l) => ({ variantId: l.variantId, quantity: Number(l.quantity) || 0 }))
-    const res = await enqueueQuote({ items, ...(quoteCustomerName ? { customerName: quoteCustomerName } : {}) })
+    const res = await enqueueQuote({
+      items,
+      ...(quoteCustomerName ? { customerName: quoteCustomerName } : {}),
+      ...(address ? { shippingAddress: address } : {}),
+    })
     setPending(false)
     if (!res.ok) {
       setError(res.error)
@@ -129,6 +136,7 @@ export function SaleCart() {
     const res = await createSale({
       items, paymentMethod,
       ...(customerPhone.trim() ? { customerPhone, customerName } : {}),
+      ...(address ? { shippingAddress: address } : {}),
     })
     setPending(false)
     if (!res.ok) {
@@ -160,6 +168,7 @@ export function SaleCart() {
           lines={cart}
           total={total}
           customerName={quoteCustomerName}
+          shippingAddress={address || undefined}
           onNuevoPresupuesto={handleNuevoPresupuesto}
         />
       ) : (
@@ -218,6 +227,13 @@ export function SaleCart() {
               </label>
             )
           )}
+
+          <label className="flex flex-col gap-1">
+            <span className="text-sm">Dirección de envío (opcional)</span>
+            <Input aria-label="Dirección de envío (opcional)" autoComplete="street-address" maxLength={200}
+              placeholder="Calle, número y localidad — solo si hay entrega" value={shippingAddress}
+              onChange={(e) => setShippingAddress(e.target.value)} />
+          </label>
 
           {mode === 'venta' && (
             <label className="flex flex-col gap-1">

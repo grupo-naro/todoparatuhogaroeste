@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import Image from 'next/image'
+import { BUILD_ID } from '@/lib/build-id'
 import type { PrintableJob } from '@/server/printing/station'
 import { SaleDocument } from '@/components/ventas/SaleDocument'
 import { QuoteDocument } from '@/components/ventas/QuoteDocument'
@@ -58,7 +59,7 @@ export function PrintStation({ clave }: { clave: string }) {
           return
         }
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const { jobs } = (await res.json()) as { jobs: PrintableJob[] }
+        const { jobs, version } = (await res.json()) as { jobs: PrintableJob[]; version?: string }
         for (const job of jobs) {
           if (cancelled) return
           if (!printed.current.has(job.id)) {
@@ -74,6 +75,11 @@ export function PrintStation({ clave }: { clave: string }) {
           await markPrinted(job.id)
         }
         setCurrent(null)
+        // Con una versión nueva desplegada, recargar (ya sin trabajos pendientes) para no seguir con código viejo.
+        if (version && version !== BUILD_ID) {
+          window.location.reload()
+          return
+        }
         setStatus({ kind: 'ok', at: new Date() })
       } catch {
         if (!cancelled) setStatus({ kind: 'red' })

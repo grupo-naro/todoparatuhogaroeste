@@ -103,3 +103,24 @@ describe('PrintStation', () => {
     expect(screen.getByText(/Conectada · última revisión \d{2}:\d{2}:\d{2}/)).toBeInTheDocument()
   })
 })
+
+describe('PrintStation — versión nueva', () => {
+  it('se recarga si el servidor tiene otra versión, después de imprimir lo pendiente', async () => {
+    const reload = vi.fn(() => { events.push('reload') })
+    vi.stubGlobal('location', { ...window.location, reload })
+    pendientes = () => json({ jobs: [quote('j1')], version: 'otra-version' })
+    render(<PrintStation clave="k" />)
+    await tick()
+    expect(events.filter((e) => e !== 'fetch')).toEqual(['print', 'mark:j1', 'reload'])
+  })
+
+  it('no se recarga si la versión coincide o el servidor no la informa', async () => {
+    const reload = vi.fn()
+    vi.stubGlobal('location', { ...window.location, reload })
+    pendientes = () => json({ jobs: [], version: 'dev' })
+    render(<PrintStation clave="k" />)
+    await tick()
+    await tick(5000)
+    expect(reload).not.toHaveBeenCalled()
+  })
+})

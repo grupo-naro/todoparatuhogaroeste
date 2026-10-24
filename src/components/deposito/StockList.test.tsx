@@ -24,3 +24,17 @@ describe('StockList', () => {
     expect(screen.getAllByText('Sin resultados').length).toBeGreaterThanOrEqual(1)
   })
 })
+
+describe('StockList con reservas', () => {
+  it('muestra reservado y disponible cuando hay unidades apartadas', () => {
+    const reservadas = [{ ...rows[0], reserved: 2, available: 3 }]
+    render(<StockList rows={reservadas} totalVariants={1} totalUnits={5} />)
+    expect(screen.getAllByText(/2 reservadas/).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/3 disponibles/).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('sin reservas no agrega ruido', () => {
+    render(<StockList rows={rows} totalVariants={1} totalUnits={5} />)
+    expect(screen.queryByText(/reservadas/)).not.toBeInTheDocument()
+  })
+})

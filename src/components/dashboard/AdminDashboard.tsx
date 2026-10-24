@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import type { AdminDashboardStats } from '@/server/queries/dashboard'
 import type { Period } from '@/lib/period'
 import { PeriodSelector } from './PeriodSelector'
@@ -12,12 +13,27 @@ export function AdminDashboard({ stats, period }: { stats: AdminDashboardStats; 
       <FilterTransition>
       <PeriodSelector period={period} />
       <PendingFade>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
         <StatCard label="Total facturado" value={money(stats.totalFacturado)} />
         <StatCard label="Ventas" value={integer(stats.cantidadVentas)} />
+        <StatCard label="Señas cobradas" value={money(stats.senasCobradas)} />
         <StatCard label="Clientes nuevos" value={integer(stats.clientesNuevos)} />
         <StatCard label="Ventas anuladas" value={integer(stats.ventasAnuladas)} />
       </div>
+      {(stats.reservasListas > 0 || stats.senasSinResolver > 0) && (
+        <div className="flex flex-col gap-2 mb-6">
+          {stats.reservasListas > 0 && (
+            <Link href="/reservas?tab=listas" className="border border-success rounded-lg p-3 min-h-11 text-sm font-medium">
+              {stats.reservasListas} {stats.reservasListas === 1 ? 'reserva lista' : 'reservas listas'} para avisar
+            </Link>
+          )}
+          {stats.senasSinResolver > 0 && (
+            <Link href="/reservas?tab=cerradas" className="border border-danger rounded-lg p-3 min-h-11 text-sm font-medium text-danger">
+              {stats.senasSinResolver} {stats.senasSinResolver === 1 ? 'seña sin resolver' : 'señas sin resolver'}
+            </Link>
+          )}
+        </div>
+      )}
       <h2 className="text-lg font-semibold mb-2">Stock bajo</h2>
       {stats.stockBajo.length === 0 ? (
         <p className="text-muted">Todo con stock</p>

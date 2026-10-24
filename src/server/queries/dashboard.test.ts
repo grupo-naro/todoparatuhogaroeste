@@ -122,6 +122,51 @@ describe('getVendedorDashboardStats', () => {
 
   it('sin ninguna venta, devuelve 0 sin romper', async () => {
     const stats = await getVendedorDashboardStats(userId, 'day')
-    expect(stats).toEqual({ cantidadPedidos: 0 })
+    expect(stats).toEqual({ cantidadPedidos: 0, reservasListas: 0 })
+  })
+})
+
+describe('dashboard con reservas', () => {
+  const pay = (reservationId: string, kind: 'SENA' | 'DEVOLUCION', amount: number, createdAt = new Date()) =>
+    prisma.reservationPayment.create({ data: { reservationId, kind, amount, paymentMethod: 'EFECTIVO', userId, createdAt } })
+  const reservation = (status: 'ESPERANDO' | 'LISTA' | 'VENCIDA' = 'ESPERANDO') =>
+    prisma.reservation.create({ data: { userId, status, items: { create: [{ variantId: v1, quantity: 1, unitPrice: 100 }] } } })
+
+  it('senasCobradas suma las señas y resta las devoluciones del período', async () => {
+    const r = await reservation()
+    await pay(r.id, 'SENA', 500)
+    await pay(r.id, 'SENA', 200)
+    await pay(r.id, 'DEVOLUCION', 100)
+    expect((await getAdminDashboardStats('month')).senasCobradas).toBe(600)
+  })
+
+  it('una seña de otro período no cuenta', async () => {
+    const r = await reservation()
+    await pay(r.id, 'SENA', 500, OLD)
+    expect((await getAdminDashboardStats('month')).senasCobradas).toBe(0)
+  })
+
+  it('totalFacturado resta la seña ya cobrada de las ventas que vienen de una reserva', async () => {
+    const sale = await makeSale({ total: 1000 })
+    await prisma.sale.update({ where: { id: sale.id }, data: { depositApplied: 400 } })
+    await makeSale({ total: 100 })
+    expect((await getAdminDashboardStats('month')).totalFacturado).toBe(700)
+  })
+
+  it('reservasListas y senasSinResolver', async () => {
+    await reservation('LISTA')
+    await reservation('ESPERANDO')
+    const vencida = await reservation('VENCIDA')
+    await pay(vencida.id, 'SENA', 300)
+    const stats = await getAdminDashboardStats('day')
+    expect(stats.reservasListas).toBe(1)
+    expect(stats.senasSinResolver).toBe(1)
+  })
+
+  it('el dashboard de la vendedora cuenta sus reservas listas', async () => {
+    await reservation('LISTA')
+    const otra = await prisma.user.create({ data: { email: 'b@b.com', name: 'Bea', passwordHash: 'x', role: 'VENDEDOR' } })
+    await prisma.reservation.create({ data: { userId: otra.id, status: 'LISTA', items: { create: [{ variantId: v1, quantity: 1, unitPrice: 100 }] } } })
+    expect((await getVendedorDashboardStats(userId, 'day')).reservasListas).toBe(1)
   })
 })

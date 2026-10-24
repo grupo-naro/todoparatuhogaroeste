@@ -27,7 +27,10 @@ export function StockList({
                 <Td>{r.productName}</Td>
                 <Td>{r.variantName}</Td>
                 <Td>{r.categoryName}</Td>
-                <Td className="text-right">{integer(r.quantity)}</Td>
+                <Td className="text-right">
+                  {integer(r.quantity)}
+                  {r.reserved > 0 && <span className="block text-xs text-muted">{r.reserved} reservadas · {r.available} disponibles</span>}
+                </Td>
                 <Td className="text-right">{money(r.unitCost)}</Td>
                 <Td className="text-right">{money(r.unitPrice)}</Td>
                 <Td>
@@ -62,6 +65,7 @@ export function StockList({
               <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
                 <dt className="text-muted">Categoría</dt><dd>{r.categoryName}</dd>
                 <dt className="text-muted">Stock</dt><dd>{integer(r.quantity)}</dd>
+                {r.reserved > 0 && (<><dt className="text-muted">Reservado</dt><dd>{r.reserved} reservadas · {r.available} disponibles</dd></>)}
                 <dt className="text-muted">Costo unit.</dt><dd>{money(r.unitCost)}</dd>
                 <dt className="text-muted">Precio venta</dt><dd>{money(r.unitPrice)}</dd>
               </dl>

@@ -277,3 +277,49 @@ describe('SaleCart — modo presupuesto', () => {
     expect(screen.getByRole('button', { name: 'Generar presupuesto' })).toBeDisabled()
   })
 })
+
+describe('SaleCart — descuento', () => {
+  async function conProducto() {
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    render(<SaleCart />)
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+  }
+
+  it('resta el descuento del total que se muestra', async () => {
+    await conProducto()
+    await userEvent.type(screen.getByLabelText('Descuento ($) (opcional)'), '50')
+    expect(screen.getByText(/^\$\s*250,00$/)).toBeInTheDocument()
+  })
+
+  it('manda el descuento y el motivo al confirmar', async () => {
+    createSale.mockResolvedValue({ ok: true, saleId: 's1', number: 1 })
+    await conProducto()
+    await userEvent.type(screen.getByLabelText('Descuento ($) (opcional)'), '50')
+    await userEvent.type(screen.getByLabelText('Motivo del descuento (opcional)'), 'mancha mínima')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar venta' }))
+    expect(createSale).toHaveBeenCalledWith(expect.objectContaining({ discount: 50, discountReason: 'mancha mínima' }))
+  })
+
+  it('sin descuento no manda esos campos', async () => {
+    createSale.mockResolvedValue({ ok: true, saleId: 's1', number: 1 })
+    await conProducto()
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar venta' }))
+    const arg = createSale.mock.calls.at(-1)![0]
+    expect(arg).not.toHaveProperty('discount')
+    expect(arg).not.toHaveProperty('discountReason')
+  })
+
+  it('avisa y bloquea el botón si el descuento supera el total', async () => {
+    await conProducto()
+    await userEvent.type(screen.getByLabelText('Descuento ($) (opcional)'), '999')
+    expect(screen.getByText(/no puede superar el total/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar venta' })).toBeDisabled()
+  })
+
+  it('en modo presupuesto no hay descuento', async () => {
+    await conProducto()
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    expect(screen.queryByLabelText('Descuento ($) (opcional)')).not.toBeInTheDocument()
+  })
+})

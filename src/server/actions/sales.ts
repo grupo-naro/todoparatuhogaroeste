@@ -70,13 +70,18 @@ export async function createSale(input: unknown): Promise<CreateSaleResult> {
     if (!customer.ok) return { ok: false, error: customer.error }
     const customerId = customer.customerId
 
+    const discount = parsed.data.discount ?? 0
+    if (discount > total) return { ok: false, error: 'El descuento no puede superar el total' }
+
     const sale = await tx.sale.create({
       data: {
         userId: session.sub,
         paymentMethod: parsed.data.paymentMethod,
         customerId,
         shippingAddress: parsed.data.shippingAddress || null,
-        total,
+        total: total - discount,
+        discount,
+        discountReason: discount > 0 ? parsed.data.discountReason || null : null,
         items: { create: lines },
       },
     })

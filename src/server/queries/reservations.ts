@@ -17,6 +17,8 @@ export type ReservationDetail = {
   items: { variantId: string; productName: string; variantName: string; quantity: number; allocated: number; unitPrice: number; currentPrice: number | null }[]
   payments: { id: string; kind: 'SENA' | 'DEVOLUCION'; amount: number; paymentMethod: PaymentMethodName; createdAt: Date; userName: string }[]
   depositBalance: number
+  discount: number
+  discountReason: string | null
 }
 
 export type ReservationRow = {
@@ -75,6 +77,8 @@ export async function getReservation(id: string, opts: { userId?: string } = {})
       createdAt: p.createdAt, userName: p.user.name,
     })),
     depositBalance: netDeposit(r.payments),
+    discount: toNumber(r.discount) ?? 0,
+    discountReason: r.discountReason,
   }
 }
 

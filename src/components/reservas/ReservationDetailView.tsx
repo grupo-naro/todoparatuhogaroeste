@@ -10,7 +10,8 @@ const STATUS_LABEL: Record<ReservationDetail['status'], string> = {
 }
 
 export function ReservationDetailView({ reservation: r }: { reservation: ReservationDetail }) {
-  const total = r.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+  const subtotal = r.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+  const total = subtotal - r.discount
   return (
     <section className="flex flex-col gap-4 max-w-2xl">
       <div className="flex items-center justify-between gap-2">
@@ -47,6 +48,9 @@ export function ReservationDetailView({ reservation: r }: { reservation: Reserva
             </li>
           ))}
         </ul>
+        {r.discount > 0 && (
+          <p className="text-right mt-2 text-sm">Descuento: −{money(r.discount)}{r.discountReason ? ` (${r.discountReason})` : ''}</p>
+        )}
         <p className="text-right mt-2 font-semibold">Total: {money(total)}</p>
       </div>
 

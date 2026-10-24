@@ -155,3 +155,26 @@ describe('createReservation — impresión', () => {
     expect(await prisma.printJob.count()).toBe(0)
   })
 })
+
+describe('descuento en la reserva', () => {
+  it('guarda el descuento y su motivo', async () => {
+    const res = await createReservation({ items: [{ variantId: silla, quantity: 2 }], discount: 30, discountReason: 'sin caja' })
+    const r = await prisma.reservation.findUniqueOrThrow({ where: { id: (res as { reservationId: string }).reservationId } })
+    expect(Number(r.discount)).toBe(30)
+    expect(r.discountReason).toBe('sin caja')
+  })
+
+  it('rechaza un descuento mayor al total y no crea nada', async () => {
+    const res = await createReservation({ items: [{ variantId: silla, quantity: 1 }], discount: 81 })
+    expect(res).toEqual({ ok: false, error: 'El descuento no puede superar el total' })
+    expect(await prisma.reservation.count()).toBe(0)
+    expect(await prisma.printJob.count()).toBe(0)
+  })
+
+  it('el límite de la seña se calcula sobre el total ya descontado', async () => {
+    const res = await createReservation({ items: [{ variantId: silla, quantity: 1 }], discount: 30 })
+    const reservationId = (res as { reservationId: string }).reservationId
+    expect((await addDeposit({ reservationId, amount: 60, paymentMethod: 'EFECTIVO' })).ok).toBe(false)
+    expect((await addDeposit({ reservationId, amount: 50, paymentMethod: 'EFECTIVO' })).ok).toBe(true)
+  })
+})

@@ -63,6 +63,11 @@ export async function createReservation(input: unknown): Promise<CreateReservati
       lines.push({ variantId: item.variantId, quantity: item.quantity, allocated: Math.min(item.quantity, available), unitPrice })
     }
 
+    const discount = data.discount ?? 0
+    if (discount > lines.reduce((s, l) => s + l.unitPrice * l.quantity, 0)) {
+      return { ok: false, error: 'El descuento no puede superar el total' }
+    }
+
     const customer = await resolveCustomer(tx, { phone: data.customerPhone, name: data.customerName })
     if (!customer.ok) return { ok: false, error: customer.error }
 
@@ -74,6 +79,8 @@ export async function createReservation(input: unknown): Promise<CreateReservati
         customerPhone: customer.phone ?? null,
         shippingAddress: data.shippingAddress || null,
         note: data.note || null,
+        discount,
+        discountReason: discount > 0 ? data.discountReason || null : null,
         items: { create: lines },
         ...(data.deposit
           ? { payments: { create: { kind: 'SENA', amount: data.deposit.amount, paymentMethod: data.deposit.paymentMethod, userId: session.sub } } }
@@ -108,7 +115,7 @@ export async function addDeposit(input: unknown): Promise<ActionResult> {
     prisma.reservationItem.findMany({ where: { reservationId: reservation.id } }),
     prisma.reservationPayment.findMany({ where: { reservationId: reservation.id } }),
   ])
-  const reservationTotal = items.reduce((s, i) => s + (toNumber(i.unitPrice) ?? 0) * i.quantity, 0)
+  const reservationTotal = items.reduce((s, i) => s + (toNumber(i.unitPrice) ?? 0) * i.quantity, 0) - (toNumber(reservation.discount) ?? 0)
   if (net(payments) + parsed.data.amount > reservationTotal) {
     return { ok: false, error: 'La seña supera el total de la reserva' }
   }
@@ -248,7 +255,12 @@ export async function convertReservation(input: unknown): Promise<ConvertReserva
     if (missing) return { ok: false, error: `${missing.productName} · ${missing.variantName} no tiene precio cargado` }
 
     const sale = priced.map((l) => ({ ...l, unitPrice: l.unitPrice as number, subtotal: (l.unitPrice as number) * l.quantity }))
-    const total = sale.reduce((s, l) => s + l.subtotal, 0)
+    const subtotal = sale.reduce((s, l) => s + l.subtotal, 0)
+    const discount = toNumber(r.discount) ?? 0
+    if (discount > subtotal) {
+      return { ok: false, error: 'El descuento supera el total con los precios elegidos: ajustá el descuento o elegí otro precio' }
+    }
+    const total = subtotal - discount
     const deposit = net(r.payments)
     if (deposit > total) {
       return { ok: false, error: 'La seña supera el total. Registrá la devolución de la diferencia antes de concretar' }
@@ -262,6 +274,7 @@ export async function convertReservation(input: unknown): Promise<ConvertReserva
       data: {
         userId: session.sub, paymentMethod: parsed.data.paymentMethod, customerId: r.customerId,
         shippingAddress: r.shippingAddress, total, depositApplied: deposit,
+        discount, discountReason: discount > 0 ? r.discountReason : null,
         items: { create: sale.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice, subtotal: l.subtotal })) },
       },
     })

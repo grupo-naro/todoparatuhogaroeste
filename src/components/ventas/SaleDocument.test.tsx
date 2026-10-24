@@ -4,7 +4,7 @@ import { SaleDocument } from './SaleDocument'
 
 const sale = {
   id: 's1', number: 12, createdAt: '2026-10-22T15:00:00.000Z', userName: 'Ana',
-  paymentMethod: 'EFECTIVO' as const, total: 600, cancelledAt: null, cancelledByName: null, shippingAddress: null as string | null, depositApplied: 0,
+  paymentMethod: 'EFECTIVO' as const, total: 600, cancelledAt: null, cancelledByName: null, shippingAddress: null as string | null, depositApplied: 0, discount: 0, discountReason: null as string | null,
   items: [{ variantId: 'v1', productName: 'Sillón Milán', variantName: '2 cuerpos', quantity: 2, unitPrice: 300, subtotal: 600 }],
 }
 
@@ -67,5 +67,24 @@ describe('SaleDocument con seña', () => {
   it('sin seña no muestra saldo', () => {
     render(<SaleDocument sale={sale} />)
     expect(screen.queryByText('Saldo:')).not.toBeInTheDocument()
+  })
+})
+
+describe('SaleDocument con descuento', () => {
+  it('muestra el monto en la línea de descuento y el motivo', () => {
+    render(<SaleDocument sale={{ ...sale, total: 570, discount: 30, discountReason: 'mancha mínima' }} />)
+    expect(screen.getByText('Dto en efectivo:').parentElement).toHaveTextContent(/30,00/)
+    expect(screen.getByText(/Motivo del descuento: mancha mínima/)).toBeInTheDocument()
+  })
+
+  it('sin descuento no muestra motivo y deja la línea en blanco', () => {
+    render(<SaleDocument sale={sale} />)
+    expect(screen.getByText('Dto en efectivo:').parentElement).not.toHaveTextContent(/\$/)
+    expect(screen.queryByText(/Motivo del descuento/)).not.toBeInTheDocument()
+  })
+
+  it('con descuento y sin motivo no muestra la línea de motivo', () => {
+    render(<SaleDocument sale={{ ...sale, total: 570, discount: 30 }} />)
+    expect(screen.queryByText(/Motivo del descuento/)).not.toBeInTheDocument()
   })
 })

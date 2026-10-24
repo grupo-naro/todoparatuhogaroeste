@@ -25,7 +25,7 @@ export function ConvertReservationDialog({ reservation, open, onOpenChange }: {
   const changed = reservation.items.filter((i) => i.currentPrice !== i.unitPrice)
   const needsPriceChoice = changed.length > 0 && priceMode === null
   const priceOf = (i: (typeof reservation.items)[number]) => (priceMode === 'ACTUAL' ? i.currentPrice ?? i.unitPrice : i.unitPrice)
-  const total = reservation.items.reduce((s, i) => s + priceOf(i) * i.quantity, 0)
+  const total = reservation.items.reduce((s, i) => s + priceOf(i) * i.quantity, 0) - reservation.discount
 
   async function confirm() {
     setError(null)

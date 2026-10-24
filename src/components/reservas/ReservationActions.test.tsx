@@ -154,3 +154,14 @@ describe('ReservationActions — cancelar y señas', () => {
     expect(actions.reprintReservation).toHaveBeenCalledWith('r1')
   })
 })
+
+describe('ReservationActions — concretar con descuento', () => {
+  it('el diálogo muestra el total ya descontado y lo que falta cobrar', async () => {
+    renderActions(lista({ discount: 100, depositBalance: 100, payments: [{ id: 'p', kind: 'SENA', amount: 100, paymentMethod: 'EFECTIVO', createdAt: new Date(), userName: 'Ana' }] }))
+    await userEvent.click(screen.getByRole('button', { name: 'Concretar venta' }))
+    const dialog = screen.getByRole('dialog')
+    // 500 − 100 = 400 de total; seña 100; a cobrar 300
+    expect(within(dialog).getByText('Total').nextElementSibling).toHaveTextContent(/400,00/)
+    expect(within(dialog).getByText('A cobrar ahora').nextElementSibling).toHaveTextContent(/300,00/)
+  })
+})

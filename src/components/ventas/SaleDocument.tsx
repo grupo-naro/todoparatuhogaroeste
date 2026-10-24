@@ -23,6 +23,8 @@ export function SaleDocument({ sale }: { sale: SaleDocumentData }) {
       depositAmount={sale.depositApplied > 0 ? sale.depositApplied : undefined}
       balance={sale.depositApplied > 0 ? sale.total - sale.depositApplied : undefined}
       totalLabel="Total"
+      discount={sale.discount > 0 ? sale.discount : undefined}
+      discountReason={sale.discountReason}
       extra={<p className="font-semibold">Método de pago: {PAYMENT_METHOD_LABELS[sale.paymentMethod]}</p>}
       legend={sale.cancelledAt && (
         <p className="text-danger font-medium">

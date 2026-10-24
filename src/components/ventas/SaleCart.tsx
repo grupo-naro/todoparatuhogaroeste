@@ -30,6 +30,8 @@ export function SaleCart() {
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [shippingAddress, setShippingAddress] = useState('')
+  const [discount, setDiscount] = useState('')
+  const [discountReason, setDiscountReason] = useState('')
   const [foundCustomer, setFoundCustomer] = useState<{ id: string; name: string; phone: string } | null>(null)
   const [mode, setMode] = useState<'venta' | 'presupuesto'>('venta')
   const [showQuote, setShowQuote] = useState(false)
@@ -92,6 +94,9 @@ export function SaleCart() {
 
   const total = cart.reduce((sum, l) => sum + (l.unitPrice ?? 0) * (Number(l.quantity) || 0), 0)
   const unpricedLine = cart.find((l) => l.unitPrice === null)
+  const discountValue = Number(discount.replace(',', '.')) || 0
+  const discountTooBig = discountValue > total
+  const netTotal = discountTooBig ? total : total - discountValue
 
   const phoneDigits = normalizePhone(customerPhone)
   const matchedCustomer = foundCustomer?.phone === phoneDigits ? foundCustomer : null
@@ -137,6 +142,7 @@ export function SaleCart() {
       items, paymentMethod,
       ...(customerPhone.trim() ? { customerPhone, customerName } : {}),
       ...(address ? { shippingAddress: address } : {}),
+      ...(discountValue > 0 ? { discount: discountValue, ...(discountReason.trim() ? { discountReason: discountReason.trim() } : {}) } : {}),
     })
     setPending(false)
     if (!res.ok) {
@@ -236,6 +242,24 @@ export function SaleCart() {
           </label>
 
           {mode === 'venta' && (
+            <>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1">
+          <span className="text-sm">Descuento ($) (opcional)</span>
+          <Input aria-label="Descuento ($) (opcional)" inputMode="decimal" value={discount}
+            onChange={(e) => setDiscount(e.target.value)} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm">Motivo del descuento (opcional)</span>
+          <Input aria-label="Motivo del descuento (opcional)" maxLength={100} placeholder="Por ejemplo: mancha mínima"
+            value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} />
+        </label>
+      </div>
+      {discountTooBig && <p className="text-sm text-danger">El descuento no puede superar el total.</p>}
+            </>
+          )}
+
+          {mode === 'venta' && (
             <label className="flex flex-col gap-1">
               <span className="text-sm">Método de pago</span>
               <Select aria-label="Método de pago" value={paymentMethod} onValueChange={setPaymentMethod}
@@ -255,12 +279,12 @@ export function SaleCart() {
             style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
             <div className="flex items-center justify-between">
               <span className="font-medium">Total</span>
-              <span className="text-lg font-semibold">{money(total)}</span>
+              <span className="text-lg font-semibold">{money(mode === 'venta' ? netTotal : total)}</span>
             </div>
             <Button
               onClick={mode === 'venta' ? handleConfirm : handleQuote}
               loading={pending}
-              disabled={cart.length === 0 || (mode === 'presupuesto' && !!unpricedLine)}
+              disabled={cart.length === 0 || (mode === 'presupuesto' && !!unpricedLine) || (mode === 'venta' && discountTooBig)}
             >
               {mode === 'venta' ? (pending ? 'Guardando…' : 'Confirmar venta') : 'Generar presupuesto'}
             </Button>

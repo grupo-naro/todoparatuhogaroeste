@@ -123,3 +123,12 @@ describe('getSale con seña', () => {
     expect((await getSale(sinSena.id))!.depositApplied).toBe(0)
   })
 })
+
+describe('getSale con descuento', () => {
+  it('devuelve discount y discountReason', async () => {
+    const sale = await prisma.sale.create({
+      data: { userId, paymentMethod: 'EFECTIVO', total: 270, discount: 30, discountReason: 'mancha', items: { create: [{ variantId: v1, quantity: 1, unitPrice: 300, subtotal: 300 }] } },
+    })
+    expect(await getSale(sale.id)).toMatchObject({ discount: 30, discountReason: 'mancha', total: 270 })
+  })
+})

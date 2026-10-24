@@ -39,7 +39,7 @@ function Blank({ label, value }: { label: string; value?: string }) {
 
 export function DocumentSheet({
   title, ticketNumber, referenceLabel, date, customerName, address, sellerName, lines, total, totalLabel,
-  depositAmount, balance, extra, legend,
+  depositAmount, balance, discount, discountReason, extra, legend,
 }: {
   title: string
   ticketNumber?: number
@@ -47,6 +47,9 @@ export function DocumentSheet({
   referenceLabel?: string
   /** Seña ya cobrada: completa el campo SEÑA. */
   depositAmount?: number
+  /** Descuento por monto: completa la línea DTO y, si hay motivo, lo muestra debajo. */
+  discount?: number
+  discountReason?: string | null
   /** Saldo a pagar: se muestra sólo si viene. */
   balance?: number
   date: Date | string
@@ -127,12 +130,13 @@ export function DocumentSheet({
         <Blank label="Seña:" value={depositAmount ? money(depositAmount) : undefined} />
         <Blank label={`${totalLabel}:`} value={money(total)} />
         <Blank label="Envío:" />
-        <Blank label="Dto en efectivo:" />
+        <Blank label="Dto en efectivo:" value={discount ? money(discount) : undefined} />
         {balance !== undefined && (
           <div className="col-start-2"><Blank label="Saldo:" value={money(balance)} /></div>
         )}
       </div>
 
+      {discount && discountReason ? <p className="text-xs text-muted print:text-[10pt]">Motivo del descuento: {discountReason}</p> : null}
       {extra}
       {legend}
 

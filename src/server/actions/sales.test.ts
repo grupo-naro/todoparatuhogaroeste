@@ -283,3 +283,38 @@ describe('cancelSale simultánea', () => {
     expect(await prisma.inventoryTransaction.count({ where: { type: 'ANULACION', batchId: saleId } })).toBe(1)
   })
 })
+
+describe('descuento en la venta', () => {
+  it('resta el descuento del total y lo guarda con su motivo', async () => {
+    const res = await createSale({ items: [{ variantId: v1, quantity: 2 }], paymentMethod: 'EFECTIVO', discount: 30, discountReason: ' mancha mínima ' })
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: (res as { saleId: string }).saleId }, include: { items: true } })
+    expect(Number(sale.total)).toBe(170)
+    expect(Number(sale.discount)).toBe(30)
+    expect(sale.discountReason).toBe('mancha mínima')
+    expect(Number(sale.items[0].subtotal)).toBe(200)
+  })
+
+  it('sin descuento guarda 0 y sin motivo', async () => {
+    const res = await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO' })
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: (res as { saleId: string }).saleId } })
+    expect(Number(sale.discount)).toBe(0)
+    expect(sale.discountReason).toBeNull()
+  })
+
+  it('rechaza un descuento mayor al total y no vende nada', async () => {
+    const res = await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO', discount: 101 })
+    expect(res).toEqual({ ok: false, error: 'El descuento no puede superar el total' })
+    expect(await prisma.sale.count()).toBe(0)
+    expect((await prisma.inventoryStock.findUniqueOrThrow({ where: { variantId: v1 } })).quantity).toBe(5)
+  })
+
+  it('rechaza un descuento negativo', async () => {
+    const res = await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO', discount: -5 })
+    expect(res.ok).toBe(false)
+  })
+
+  it('un descuento igual al total deja la venta en 0', async () => {
+    const res = await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO', discount: 100 })
+    expect(res.ok).toBe(true)
+  })
+})

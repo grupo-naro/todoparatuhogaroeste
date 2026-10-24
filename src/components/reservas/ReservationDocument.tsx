@@ -8,7 +8,7 @@ export function itemNote(item: { quantity: number; allocated: number }): string 
 }
 
 export function ReservationDocument({ reservation }: { reservation: ReservationDetail }) {
-  const total = reservation.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+  const total = reservation.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0) - reservation.discount
   const deposit = reservation.depositBalance
   return (
     <DocumentSheet
@@ -23,6 +23,8 @@ export function ReservationDocument({ reservation }: { reservation: ReservationD
       }))}
       total={total}
       totalLabel="Total"
+      discount={reservation.discount > 0 ? reservation.discount : undefined}
+      discountReason={reservation.discountReason}
       depositAmount={deposit > 0 ? deposit : undefined}
       balance={deposit > 0 ? total - deposit : undefined}
       legend={<p className="text-xs text-muted text-center print:text-[9pt]">Te avisamos apenas esté todo listo para retirar. Los productos reservados quedan guardados a tu nombre.</p>}

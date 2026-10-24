@@ -189,3 +189,32 @@ describe('convertReservation', () => {
     expect(await stock(mesa)).toBe(0)
   })
 })
+
+describe('convertReservation con descuento', () => {
+  const conDescuento = (discount: number, unitPrice = 500) =>
+    reserva('LISTA', [{ variantId: mesa, quantity: 1, allocated: 1, unitPrice }, { variantId: silla, quantity: 2, allocated: 2, unitPrice: 80 }], [], { discount, discountReason: 'mancha' })
+
+  it('la venta lleva el descuento y su total ya descontado', async () => {
+    const r = await conDescuento(100)
+    const res = await convertReservation({ id: r.id, paymentMethod: 'EFECTIVO' })
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: (res as { saleId: string }).saleId } })
+    expect(Number(sale.total)).toBe(560)
+    expect(Number(sale.discount)).toBe(100)
+    expect(sale.discountReason).toBe('mancha')
+  })
+
+  it('con la seña, la seña se compara con el total descontado', async () => {
+    const r = await reserva('LISTA', [{ variantId: mesa, quantity: 1, allocated: 1 }], [{ amount: 450 }], { discount: 100 })
+    const res = await convertReservation({ id: r.id, paymentMethod: 'EFECTIVO' })
+    expect(res).toMatchObject({ ok: false, error: expect.stringMatching(/La seña supera el total/) })
+  })
+
+  it('rechaza si el descuento supera el total con el precio elegido', async () => {
+    const r = await conDescuento(600, 700)
+    await prisma.productVariant.update({ where: { id: mesa }, data: { price: 100 } })
+    await prisma.productVariant.update({ where: { id: silla }, data: { price: 100 } })
+    const res = await convertReservation({ id: r.id, paymentMethod: 'EFECTIVO', priceMode: 'ACTUAL' })
+    expect(res).toMatchObject({ ok: false, error: expect.stringMatching(/descuento/i) })
+    expect(await prisma.sale.count()).toBe(0)
+  })
+})

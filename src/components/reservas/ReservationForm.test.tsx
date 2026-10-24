@@ -83,3 +83,26 @@ describe('ReservationForm', () => {
     expect(screen.getByRole('button', { name: 'Guardar reserva' })).toBeDisabled()
   })
 })
+
+describe('ReservationForm — descuento', () => {
+  it('manda el descuento y el motivo', async () => {
+    createReservation.mockResolvedValue({ ok: true, reservationId: 'r9', number: 3 })
+    render(<ReservationForm />)
+    await agregar()
+    await userEvent.type(screen.getByLabelText('Descuento ($) (opcional)'), '30')
+    await userEvent.type(screen.getByLabelText('Motivo del descuento (opcional)'), 'sin caja')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar reserva' }))
+    expect(createReservation).toHaveBeenCalledWith(expect.objectContaining({ discount: 30, discountReason: 'sin caja' }))
+  })
+
+  it('resta el descuento del total y bloquea si lo supera', async () => {
+    render(<ReservationForm />)
+    await agregar()
+    await userEvent.type(screen.getByLabelText('Descuento ($) (opcional)'), '30')
+    expect(screen.getByText(/^\$\s*50,00$/)).toBeInTheDocument()
+    await userEvent.clear(screen.getByLabelText('Descuento ($) (opcional)'))
+    await userEvent.type(screen.getByLabelText('Descuento ($) (opcional)'), '500')
+    expect(screen.getByText(/no puede superar el total/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar reserva' })).toBeDisabled()
+  })
+})

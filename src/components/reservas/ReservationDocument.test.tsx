@@ -35,3 +35,14 @@ describe('ReservationDocument', () => {
     expect(screen.queryByText('Saldo:')).not.toBeInTheDocument()
   })
 })
+
+describe('ReservationDocument con descuento', () => {
+  it('descuenta del total y del saldo, y muestra el motivo', () => {
+    render(<ReservationDocument reservation={reservationDetail({ discount: 100, discountReason: 'sin caja' })} />)
+    // total 980 − 100 = 880; seña 300; saldo 580
+    expect(screen.getByText('Total:').parentElement).toHaveTextContent(/880,00/)
+    expect(screen.getByText('Dto en efectivo:').parentElement).toHaveTextContent(/100,00/)
+    expect(screen.getByText('Saldo:').parentElement).toHaveTextContent(/580,00/)
+    expect(screen.getByText(/Motivo del descuento: sin caja/)).toBeInTheDocument()
+  })
+})

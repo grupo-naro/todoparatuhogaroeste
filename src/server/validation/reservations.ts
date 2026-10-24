@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { PAYMENT_METHODS } from '@/lib/constants'
-import { saleItemInputSchema, shippingAddressSchema } from './sales'
+import { discountFields, saleItemInputSchema, shippingAddressSchema } from './sales'
 
 export const depositInputSchema = z.object({
   amount: z.coerce.number().positive('La seña tiene que ser mayor a 0'),
@@ -14,6 +14,7 @@ export const createReservationSchema = z.object({
   shippingAddress: shippingAddressSchema,
   note: z.string().trim().max(300, 'La nota es demasiado larga').optional(),
   deposit: depositInputSchema.optional(),
+  ...discountFields,
 })
 
 export const addDepositSchema = depositInputSchema.extend({ reservationId: z.string().uuid() })

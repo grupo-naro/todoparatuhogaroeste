@@ -29,6 +29,8 @@ export function ReservationForm() {
   const [shippingAddress, setShippingAddress] = useState('')
   const [note, setNote] = useState('')
   const [deposit, setDeposit] = useState('')
+  const [discount, setDiscount] = useState('')
+  const [discountReason, setDiscountReason] = useState('')
   const [depositMethod, setDepositMethod] = useState('EFECTIVO')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -82,6 +84,9 @@ export function ReservationForm() {
   const phoneDigits = normalizePhone(customerPhone)
   const matched = foundCustomer?.phone === phoneDigits ? foundCustomer : null
   const depositAmount = Number(deposit.replace(',', '.'))
+  const discountValue = Number(discount.replace(',', '.')) || 0
+  const discountTooBig = discountValue > total
+  const netTotal = discountTooBig ? total : total - discountValue
 
   async function handleSave() {
     setError(null)
@@ -93,6 +98,7 @@ export function ReservationForm() {
       ...(address ? { shippingAddress: address } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
       ...(deposit.trim() ? { deposit: { amount: depositAmount, paymentMethod: depositMethod } } : {}),
+      ...(discountValue > 0 ? { discount: discountValue, ...(discountReason.trim() ? { discountReason: discountReason.trim() } : {}) } : {}),
     })
     setPending(false)
     if (!res.ok) {
@@ -178,6 +184,20 @@ export function ReservationForm() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1">
+          <span className="text-sm">Descuento ($) (opcional)</span>
+          <Input aria-label="Descuento ($) (opcional)" inputMode="decimal" value={discount}
+            onChange={(e) => setDiscount(e.target.value)} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm">Motivo del descuento (opcional)</span>
+          <Input aria-label="Motivo del descuento (opcional)" maxLength={100} placeholder="Por ejemplo: mancha mínima"
+            value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} />
+        </label>
+      </div>
+      {discountTooBig && <p className="text-sm text-danger">El descuento no puede superar el total.</p>}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1">
           <span className="text-sm">Seña (opcional)</span>
           <Input aria-label="Seña (opcional)" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} />
         </label>
@@ -197,9 +217,9 @@ export function ReservationForm() {
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="flex items-center justify-between">
           <span className="font-medium">Total</span>
-          <span className="text-lg font-semibold">{money(total)}</span>
+          <span className="text-lg font-semibold">{money(netTotal)}</span>
         </div>
-        <Button onClick={handleSave} loading={pending} disabled={cart.length === 0 || !!unpricedLine}>
+        <Button onClick={handleSave} loading={pending} disabled={cart.length === 0 || !!unpricedLine || discountTooBig}>
           {pending ? 'Guardando…' : 'Guardar reserva'}
         </Button>
       </div>

@@ -244,3 +244,31 @@ describe('createSale — dirección de envío', () => {
     expect(await prisma.sale.count()).toBe(0)
   })
 })
+
+describe('ventas y reservas', () => {
+  async function reserva(variantId: string, quantity: number, allocated: number, status: 'ESPERANDO' | 'LISTA' = 'LISTA') {
+    return prisma.reservation.create({
+      data: { userId, status, items: { create: [{ variantId, quantity, allocated, unitPrice: 100 }] } },
+    })
+  }
+
+  it('no vende unidades apartadas por una reserva', async () => {
+    await reserva(v1, 4, 4)
+    const res = await createSale({ items: [{ variantId: v1, quantity: 2 }], paymentMethod: 'EFECTIVO' })
+    expect(res).toMatchObject({ ok: false, error: expect.stringMatching(/No hay stock suficiente.*quedan 1/) })
+  })
+
+  it('sigue vendiendo lo no apartado', async () => {
+    await reserva(v1, 4, 4)
+    expect((await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO' })).ok).toBe(true)
+  })
+
+  it('al anular una venta, el stock devuelto se aparta a una reserva que esperaba', async () => {
+    const sale = await createSale({ items: [{ variantId: v2, quantity: 2 }], paymentMethod: 'EFECTIVO' })
+    const r = await reserva(v2, 2, 0, 'ESPERANDO')
+    expect(await cancelSale((sale as { ok: true; saleId: string }).saleId)).toEqual({ ok: true })
+    const after = await prisma.reservation.findUniqueOrThrow({ where: { id: r.id }, include: { items: true } })
+    expect(after.items[0].allocated).toBe(2)
+    expect(after.status).toBe('LISTA')
+  })
+})

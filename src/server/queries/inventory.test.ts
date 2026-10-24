@@ -50,3 +50,16 @@ describe('getVariantStock', () => {
     expect(await getVariantStock(vDisponible)).toBe(5)
   })
 })
+
+describe('listStock con reservas', () => {
+  it('devuelve reservado y disponible por variante', async () => {
+    const user = await prisma.user.create({ data: { email: 'r@r.com', name: 'R', passwordHash: 'x', role: 'VENDEDOR' } })
+    await prisma.reservation.create({
+      data: { userId: user.id, status: 'LISTA', items: { create: [{ variantId: vDisponible, quantity: 2, allocated: 2, unitPrice: 300 }] } },
+    })
+    const { rows } = await listStock({})
+    const row = rows.find((r) => r.variantId === vDisponible)!
+    expect(row).toMatchObject({ quantity: 5, reserved: 2, available: 3 })
+    expect(rows.find((r) => r.variantId === vSinStock)).toMatchObject({ reserved: 0, available: 0 })
+  })
+})

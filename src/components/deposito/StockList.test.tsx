@@ -10,7 +10,7 @@ vi.mock('next/navigation', () => ({
 import { StockList } from './StockList'
 
 const rows = [{ variantId: 'v1', productName: 'Sillón Milán', variantName: '2 cuerpos',
-  categoryName: 'Sillones', quantity: 5, unitCost: 100, unitPrice: 300 }]
+  categoryName: 'Sillones', quantity: 5, reserved: 0, available: 5, unitCost: 100, unitPrice: 300 }]
 
 describe('StockList', () => {
   it('renderiza tabla y tarjetas (visibilidad por CSS) y los totales', () => {

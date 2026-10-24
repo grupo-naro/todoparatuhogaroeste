@@ -100,3 +100,13 @@ describe('getSale — dirección de envío', () => {
     expect((await getSale(without.id))?.shippingAddress).toBeNull()
   })
 })
+
+describe('searchSellableVariants con reservas', () => {
+  it('quantity es el disponible: stock menos lo apartado', async () => {
+    await prisma.reservation.create({
+      data: { userId, status: 'LISTA', items: { create: [{ variantId: v1, quantity: 2, allocated: 2, unitPrice: 300 }] } },
+    })
+    const r = (await searchSellableVariants('milán')).find((x) => x.variantName === '2 cuerpos')!
+    expect(r.quantity).toBe(3)
+  })
+})

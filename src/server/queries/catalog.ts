@@ -1,6 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { prisma } from '@/server/db'
+import { reservedUnitsByVariant } from '@/server/reservations/stock'
 
 const categoryIdSchema = z.string().uuid()
 
@@ -34,12 +35,13 @@ export async function listPublicCatalog(filters: { categoryId?: string; q?: stri
     orderBy: { name: 'asc' },
   })
 
+  const reserved = await reservedUnitsByVariant(products.flatMap((p) => p.variants.map((v) => v.id)))
   return products.map((p) => ({
     id: p.id,
     name: p.name,
     images: p.images,
     variants: p.variants.map((v) => ({
-      id: v.id, name: v.name, disponible: (v.stock?.quantity ?? 0) > 0,
+      id: v.id, name: v.name, disponible: (v.stock?.quantity ?? 0) - (reserved.get(v.id) ?? 0) > 0,
     })),
   }))
 }

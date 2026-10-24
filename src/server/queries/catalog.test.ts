@@ -120,3 +120,20 @@ describe('listPublicCatalog', () => {
     expect(rows).toHaveLength(1)
   })
 })
+
+describe('listPublicCatalog con reservas', () => {
+  it('una variante totalmente apartada figura como no disponible', async () => {
+    const user = await prisma.user.create({ data: { email: 'r@r.com', name: 'R', passwordHash: 'x', role: 'VENDEDOR' } })
+    const p = await prisma.product.create({
+      data: { name: 'Silla', categoryId, variants: { create: [{ name: 'Verde', price: 50 }] } },
+      include: { variants: true },
+    })
+    const variantId = p.variants[0].id
+    await prisma.inventoryStock.create({ data: { variantId, quantity: 2 } })
+    await prisma.reservation.create({
+      data: { userId: user.id, status: 'LISTA', items: { create: [{ variantId, quantity: 2, allocated: 2, unitPrice: 50 }] } },
+    })
+    const rows = await listPublicCatalog()
+    expect(rows[0].variants[0].disponible).toBe(false)
+  })
+})

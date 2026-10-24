@@ -6,6 +6,8 @@ import { effectivePrice, toNumber } from '@/lib/pricing'
 import { normalizePhone } from '@/lib/phone'
 import { createSaleSchema } from '@/server/validation/sales'
 import { enqueueSalePrint } from '@/server/printing/queue'
+import { allocateWaiting, availableUnits, lockVariantStock } from '@/server/reservations/stock'
+import { expireOverdueReservations } from '@/server/reservations/expiry'
 import { searchSellableVariants, type SellableVariant } from '@/server/queries/sales'
 
 export type CreateSaleResult =
@@ -24,7 +26,10 @@ export async function createSale(input: unknown): Promise<CreateSaleResult> {
   for (const item of parsed.data.items) {
     merged.set(item.variantId, (merged.get(item.variantId) ?? 0) + item.quantity)
   }
+  // Orden fijo por variante: dos ventas simultáneas toman los bloqueos en el mismo orden.
   const items = [...merged.entries()].map(([variantId, quantity]) => ({ variantId, quantity }))
+    .sort((a, b) => a.variantId.localeCompare(b.variantId))
+  await expireOverdueReservations()
 
   // Discriminated union with an explicit `ok` tag, typed explicitly on the
   // transaction callback: without this, TS infers the callback's return type
@@ -45,7 +50,8 @@ export async function createSale(input: unknown): Promise<CreateSaleResult> {
       })
       if (!variant) return { ok: false, error: 'Producto no encontrado' }
 
-      const available = variant.stock?.quantity ?? 0
+      await lockVariantStock(tx, item.variantId)
+      const available = await availableUnits(tx, item.variantId)
       if (item.quantity > available) {
         return { ok: false, error: `No hay stock suficiente de ${variant.product.name} · ${variant.name} (quedan ${available})` }
       }
@@ -126,6 +132,7 @@ export async function createSale(input: unknown): Promise<CreateSaleResult> {
 
 export async function searchSellableVariantsAction(q: string): Promise<SellableVariant[]> {
   await requireRole(['ADMIN', 'VENDEDOR'])
+  await expireOverdueReservations()
   return searchSellableVariants(q)
 }
 
@@ -153,6 +160,7 @@ export async function cancelSale(id: string): Promise<ActionResult> {
           userId: session.sub, batchId: sale.id,
         },
       })
+      await allocateWaiting(tx, item.variantId)
     }
     await tx.sale.update({ where: { id }, data: { cancelledAt: new Date(), cancelledById: session.sub } })
   })

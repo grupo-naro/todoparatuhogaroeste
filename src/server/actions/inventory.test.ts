@@ -59,3 +59,33 @@ describe('adjustStock', () => {
     expect(requireRole).toHaveBeenCalledWith(['ADMIN', 'DEPOSITO'])
   })
 })
+
+describe('adjustStock con reservas', () => {
+  async function reserva(quantity: number, allocated: number, status: 'ESPERANDO' | 'LISTA' = 'LISTA') {
+    const user = await prisma.user.findFirstOrThrow()
+    return prisma.reservation.create({
+      data: { userId: user.id, status, items: { create: [{ variantId: v1, quantity, allocated, unitPrice: 100 }] } },
+    })
+  }
+
+  it('rechaza fijar el stock por debajo de lo apartado e indica cuántas unidades están reservadas', async () => {
+    await reserva(2, 2)
+    const res = await adjustStock({ variantId: v1, mode: 'set', quantity: 1, note: 'conteo' })
+    expect(res).toMatchObject({ ok: false, error: expect.stringMatching(/Hay 2 unidades reservadas/) })
+    expect((await prisma.inventoryStock.findUniqueOrThrow({ where: { variantId: v1 } })).quantity).toBe(3)
+  })
+
+  it('rechaza restar más de lo que está libre, pero deja restar lo libre', async () => {
+    await reserva(2, 2)
+    expect((await adjustStock({ variantId: v1, mode: 'delta', delta: -2, note: 'rotura' })).ok).toBe(false)
+    expect((await adjustStock({ variantId: v1, mode: 'delta', delta: -1, note: 'rotura' })).ok).toBe(true)
+  })
+
+  it('al subir el stock aparta a una reserva que esperaba', async () => {
+    const r = await reserva(5, 3, 'ESPERANDO')
+    expect((await adjustStock({ variantId: v1, mode: 'delta', delta: 2, note: 'llegó mercadería' })).ok).toBe(true)
+    const after = await prisma.reservation.findUniqueOrThrow({ where: { id: r.id }, include: { items: true } })
+    expect(after.items[0].allocated).toBe(5)
+    expect(after.status).toBe('LISTA')
+  })
+})

@@ -2,6 +2,7 @@ import 'server-only'
 import { prisma } from '@/server/db'
 import { effectivePrice, toNumber } from '@/lib/pricing'
 import type { PaymentMethodName } from '@/lib/constants'
+import { reservedUnitsByVariant } from '@/server/reservations/stock'
 
 export type SellableVariant = {
   variantId: string; productName: string; variantName: string; categoryName: string
@@ -21,9 +22,10 @@ export async function searchSellableVariants(q: string, limit = 20): Promise<Sel
       product: { select: { name: true, defaultPrice: true, category: { select: { name: true } } } },
     },
   })
+  const reserved = await reservedUnitsByVariant(rows.map((v) => v.id))
   return rows.map((v) => ({
     variantId: v.id, productName: v.product.name, variantName: v.name,
-    categoryName: v.product.category.name, quantity: v.stock?.quantity ?? 0,
+    categoryName: v.product.category.name, quantity: Math.max(0, (v.stock?.quantity ?? 0) - (reserved.get(v.id) ?? 0)),
     unitPrice: effectivePrice({ price: toNumber(v.price) }, { defaultPrice: toNumber(v.product.defaultPrice) }),
   }))
 }

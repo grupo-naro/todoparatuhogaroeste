@@ -272,3 +272,14 @@ describe('ventas y reservas', () => {
     expect(after.status).toBe('LISTA')
   })
 })
+
+describe('cancelSale simultánea', () => {
+  it('dos anulaciones a la vez devuelven el stock una sola vez', async () => {
+    const created = await createSale({ items: [{ variantId: v1, quantity: 2 }], paymentMethod: 'EFECTIVO' })
+    const saleId = (created as { ok: true; saleId: string }).saleId
+    const [a, b] = await Promise.all([cancelSale(saleId), cancelSale(saleId)])
+    expect([a.ok, b.ok].filter(Boolean)).toHaveLength(1)
+    expect((await prisma.inventoryStock.findUniqueOrThrow({ where: { variantId: v1 } })).quantity).toBe(5)
+    expect(await prisma.inventoryTransaction.count({ where: { type: 'ANULACION', batchId: saleId } })).toBe(1)
+  })
+})

@@ -90,12 +90,13 @@ export async function deleteProduct(id: string): Promise<SaveResult> {
   const product = await prisma.product.findUniqueOrThrow({
     where: { id },
     include: {
-      variants: { include: { stock: true, _count: { select: { transactions: true } } } },
+      variants: { include: { stock: true, _count: { select: { transactions: true, reservationItems: true } } } },
       images: true,
     },
   })
   const hasHistory = product.variants.some((v) => (v.stock?.quantity ?? 0) > 0 || v._count.transactions > 0)
   if (hasHistory) return { ok: false, error: 'El producto tiene variantes con stock o movimientos registrados' }
+  if (product.variants.some((v) => v._count.reservationItems > 0)) return { ok: false, error: 'El producto tiene reservas registradas' }
 
   if (product.images.length > 0) await deleteImages(product.images.map((img) => img.pathname))
 

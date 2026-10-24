@@ -91,11 +91,12 @@ export async function deleteVariant(id: string): Promise<SaveResult> {
   await requireRole(['ADMIN', 'DEPOSITO'])
   const variant = await prisma.productVariant.findUniqueOrThrow({
     where: { id },
-    include: { stock: true, _count: { select: { transactions: true } } },
+    include: { stock: true, _count: { select: { transactions: true, reservationItems: true } } },
   })
   if ((variant.stock?.quantity ?? 0) > 0) return { ok: false, error: 'La variante tiene stock' }
   if (variant._count.transactions > 0)
     return { ok: false, error: 'La variante tiene movimientos registrados' }
+  if (variant._count.reservationItems > 0) return { ok: false, error: 'La variante tiene reservas registradas' }
   const activas = await prisma.productVariant.count({ where: { productId: variant.productId } })
   if (activas <= 1) return { ok: false, error: 'El producto debe tener al menos una variante' }
   await prisma.productVariant.delete({ where: { id } })

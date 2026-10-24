@@ -120,8 +120,15 @@ export async function cancelSale(id: string): Promise<ActionResult> {
   if (!sale || (session.role === 'VENDEDOR' && sale.userId !== session.sub)) return { ok: false, error: 'Venta no encontrada' }
   if (sale.cancelledAt) return { ok: false, error: 'Esta venta ya fue anulada' }
 
-  await prisma.$transaction(async (tx) => {
-    for (const item of sale.items) {
+  class AlreadyCancelled extends Error {}
+  try {
+    await prisma.$transaction(async (tx) => {
+    // Reclamar la anulación: si dos llegan a la vez, sólo una repone el stock.
+    const claimed = await tx.sale.updateMany({ where: { id, cancelledAt: null }, data: { cancelledAt: new Date(), cancelledById: session.sub } })
+    if (claimed.count === 0) throw new AlreadyCancelled()
+    const ordered = [...sale.items].sort((a, b) => a.variantId.localeCompare(b.variantId))
+    for (const item of ordered) {
+      await lockVariantStock(tx, item.variantId)
       const current = await tx.inventoryStock.findUnique({ where: { variantId: item.variantId } })
       const before = current?.quantity ?? 0
       const after = before + item.quantity
@@ -138,8 +145,11 @@ export async function cancelSale(id: string): Promise<ActionResult> {
       })
       await allocateWaiting(tx, item.variantId)
     }
-    await tx.sale.update({ where: { id }, data: { cancelledAt: new Date(), cancelledById: session.sub } })
-  })
+    })
+  } catch (e) {
+    if (e instanceof AlreadyCancelled) return { ok: false, error: 'Esta venta ya fue anulada' }
+    throw e
+  }
 
   revalidatePath('/deposito')
   revalidatePath('/ventas')

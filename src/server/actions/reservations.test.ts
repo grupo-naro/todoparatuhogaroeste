@@ -117,7 +117,7 @@ describe('addDeposit / markReservationNotified', () => {
 
   it('registra una seña más en una reserva abierta', async () => {
     const r = await reserva()
-    expect(await addDeposit({ reservationId: r.id, amount: 100, paymentMethod: 'EFECTIVO' })).toEqual({ ok: true })
+    expect(await addDeposit({ reservationId: r.id, amount: 50, paymentMethod: 'EFECTIVO' })).toEqual({ ok: true })
     expect(await prisma.reservationPayment.count({ where: { reservationId: r.id } })).toBe(1)
   })
 
@@ -132,7 +132,7 @@ describe('addDeposit / markReservationNotified', () => {
     expect(await addDeposit({ reservationId: r.id, amount: 100, paymentMethod: 'EFECTIVO' })).toEqual({ ok: false, error: 'Reserva no encontrada' })
     expect(await markReservationNotified(r.id)).toEqual({ ok: false, error: 'Reserva no encontrada' })
     asUser(bea, 'ADMIN')
-    expect((await addDeposit({ reservationId: r.id, amount: 100, paymentMethod: 'EFECTIVO' })).ok).toBe(true)
+    expect((await addDeposit({ reservationId: r.id, amount: 50, paymentMethod: 'EFECTIVO' })).ok).toBe(true)
   })
 
   it('marca a la clienta como avisada', async () => {

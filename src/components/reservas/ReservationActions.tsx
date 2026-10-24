@@ -11,7 +11,7 @@ import { CancelReservationDialog } from './CancelReservationDialog'
 import { ConvertReservationDialog } from './ConvertReservationDialog'
 import { DepositDialog } from './DepositDialog'
 
-type Dialogs = 'deposit' | 'cancel' | 'convert' | 'resolve' | null
+type Dialogs = 'deposit' | 'refund' | 'cancel' | 'convert' | 'resolve' | null
 
 export function ReservationActions({ reservation }: { reservation: ReservationDetail }) {
   const router = useRouter()
@@ -47,6 +47,9 @@ export function ReservationActions({ reservation }: { reservation: ReservationDe
             </a>
           )}
           <Button variant="ghost" className="border border-border" onClick={() => setDialog('deposit')}>Registrar seña</Button>
+          {reservation.depositBalance > 0 && (
+            <Button variant="ghost" className="border border-border" onClick={() => setDialog('refund')}>Devolver parte de la seña</Button>
+          )}
           <Button variant="ghost" className="border border-border" onClick={reprint}>Reimprimir</Button>
           <Button variant="ghost" className="border border-danger text-danger" onClick={() => setDialog('cancel')}>Cancelar reserva</Button>
         </>
@@ -63,6 +66,7 @@ export function ReservationActions({ reservation }: { reservation: ReservationDe
       <ConvertReservationDialog key={`convert-${reservation.id}`} reservation={reservation}
         open={dialog === 'convert'} onOpenChange={(v) => setDialog(v ? 'convert' : null)} />
       <DepositDialog reservationId={reservation.id} open={dialog === 'deposit'} onOpenChange={(v) => setDialog(v ? 'deposit' : null)} />
+      <DepositDialog reservationId={reservation.id} kind="DEVOLUCION" open={dialog === 'refund'} onOpenChange={(v) => setDialog(v ? 'refund' : null)} />
       <CancelReservationDialog reservation={reservation} open={dialog === 'cancel'} onOpenChange={(v) => setDialog(v ? 'cancel' : null)} />
       <CancelReservationDialog reservation={reservation} resolveOnly open={dialog === 'resolve'} onOpenChange={(v) => setDialog(v ? 'resolve' : null)} />
     </div>

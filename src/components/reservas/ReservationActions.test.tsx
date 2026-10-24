@@ -8,7 +8,7 @@ const refresh = vi.fn()
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh }) }))
 
 const actions = vi.hoisted(() => ({
-  addDeposit: vi.fn(), cancelReservation: vi.fn(), convertReservation: vi.fn(),
+  addDeposit: vi.fn(), addRefund: vi.fn(), cancelReservation: vi.fn(), convertReservation: vi.fn(),
   resolveDeposit: vi.fn(), markReservationNotified: vi.fn(), reprintReservation: vi.fn(),
 }))
 vi.mock('@/server/actions/reservations', () => actions)
@@ -121,6 +121,20 @@ describe('ReservationActions — cancelar y señas', () => {
     await userEvent.type(screen.getByLabelText('Monto de la seña'), '150')
     await userEvent.click(screen.getByRole('button', { name: 'Guardar seña' }))
     expect(actions.addDeposit).toHaveBeenCalledWith({ reservationId: 'r1', amount: 150, paymentMethod: 'EFECTIVO' })
+  })
+
+  it('devuelve una parte de la seña en una reserva abierta', async () => {
+    actions.addRefund.mockResolvedValue({ ok: true })
+    renderActions()
+    await userEvent.click(screen.getByRole('button', { name: 'Devolver parte de la seña' }))
+    await userEvent.type(screen.getByLabelText('Monto'), '100')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar devolución' }))
+    expect(actions.addRefund).toHaveBeenCalledWith({ reservationId: 'r1', amount: 100, paymentMethod: 'EFECTIVO' })
+  })
+
+  it('no ofrece devolver parte de la seña si no hay seña', () => {
+    renderActions(lista({ payments: [], depositBalance: 0 }))
+    expect(screen.queryByRole('button', { name: 'Devolver parte de la seña' })).not.toBeInTheDocument()
   })
 
   it('una reserva vencida con seña sin resolver ofrece resolverla', async () => {

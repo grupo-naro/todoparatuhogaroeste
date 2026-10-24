@@ -18,12 +18,16 @@ export async function expireOverdueReservations(now: Date = new Date()): Promise
       include: { items: true },
     })
     const variantIds = new Set<string>()
+    let expired = 0
     for (const r of overdue) {
-      await tx.reservation.update({ where: { id: r.id }, data: { status: 'VENCIDA', closedAt: now } })
+      // Condicional: si entre la lectura y acá la concretaron o cancelaron, no se pisa.
+      const claimed = await tx.reservation.updateMany({ where: { id: r.id, status: 'LISTA' }, data: { status: 'VENCIDA', closedAt: now } })
+      if (claimed.count === 0) continue
+      expired++
       await tx.reservationItem.updateMany({ where: { reservationId: r.id }, data: { allocated: 0 } })
       for (const item of r.items) variantIds.add(item.variantId)
     }
-    for (const variantId of variantIds) await allocateWaiting(tx, variantId)
-    return overdue.length
+    for (const variantId of [...variantIds].sort()) await allocateWaiting(tx, variantId)
+    return expired
   })
 }

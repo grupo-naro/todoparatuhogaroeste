@@ -13,6 +13,17 @@ import {
 
 type Tx = Prisma.TransactionClient
 
+// Error de negocio dentro de una transacción: la deshace entera y se devuelve como { ok: false }.
+class BusinessError extends Error {}
+async function atomically<T>(fn: (tx: Tx) => Promise<T>): Promise<T | { ok: false; error: string }> {
+  try {
+    return await prisma.$transaction(fn)
+  } catch (e) {
+    if (e instanceof BusinessError) return { ok: false, error: e.message }
+    throw e
+  }
+}
+
 export type ActionResult = { ok: true } | { ok: false; error: string }
 export type CreateReservationResult =
   | { ok: true; reservationId: string; number: number }
@@ -93,6 +104,14 @@ export async function addDeposit(input: unknown): Promise<ActionResult> {
   if (reservation.status !== 'ESPERANDO' && reservation.status !== 'LISTA') {
     return { ok: false, error: 'Esta reserva ya está cerrada' }
   }
+  const [items, payments] = await Promise.all([
+    prisma.reservationItem.findMany({ where: { reservationId: reservation.id } }),
+    prisma.reservationPayment.findMany({ where: { reservationId: reservation.id } }),
+  ])
+  const reservationTotal = items.reduce((s, i) => s + (toNumber(i.unitPrice) ?? 0) * i.quantity, 0)
+  if (net(payments) + parsed.data.amount > reservationTotal) {
+    return { ok: false, error: 'La seña supera el total de la reserva' }
+  }
   await prisma.reservationPayment.create({
     data: {
       reservationId: reservation.id, kind: 'SENA', amount: parsed.data.amount,
@@ -121,15 +140,17 @@ const net = (payments: { kind: string; amount: unknown }[]) =>
 
 // Aplica la decisión de la vendedora sobre la seña neta: devolver (sale de caja) o retener.
 async function settleDeposit(tx: Tx, reservationId: string, userId: string, balance: number, decision: Decision) {
+  // Reclamar la resolución: dos envíos simultáneos no pueden devolver la seña dos veces.
+  const claimed = await tx.reservation.updateMany({
+    where: { id: reservationId, depositResolution: null },
+    data: { depositResolution: decision.action === 'DEVOLVER' ? 'DEVUELTA' : 'RETENIDA' },
+  })
+  if (claimed.count === 0) throw new BusinessError('Esta reserva no tiene una seña pendiente de resolver')
   if (decision.action === 'DEVOLVER') {
     await tx.reservationPayment.create({
       data: { reservationId, kind: 'DEVOLUCION', amount: balance, paymentMethod: decision.paymentMethod, userId },
     })
   }
-  await tx.reservation.update({
-    where: { id: reservationId },
-    data: { depositResolution: decision.action === 'DEVOLVER' ? 'DEVUELTA' : 'RETENIDA' },
-  })
 }
 
 export async function cancelReservation(input: unknown): Promise<ActionResult> {
@@ -139,7 +160,7 @@ export async function cancelReservation(input: unknown): Promise<ActionResult> {
   const own = await findOwn(parsed.data.id, session)
   if (!own) return { ok: false, error: 'Reserva no encontrada' }
 
-  const result = await prisma.$transaction(async (tx): Promise<ActionResult> => {
+  const result = await atomically(async (tx): Promise<ActionResult> => {
     const r = await tx.reservation.findUniqueOrThrow({ where: { id: own.id }, include: { items: true, payments: true } })
     if (r.status !== 'ESPERANDO' && r.status !== 'LISTA') return { ok: false, error: 'Esta reserva ya está cerrada' }
     const balance = net(r.payments)
@@ -147,7 +168,8 @@ export async function cancelReservation(input: unknown): Promise<ActionResult> {
 
     const variantIds = [...new Set(r.items.map((i) => i.variantId))].sort()
     for (const id of variantIds) await lockVariantStock(tx, id)
-    await tx.reservation.update({ where: { id: r.id }, data: { status: 'CANCELADA', closedAt: new Date() } })
+    const claimed = await tx.reservation.updateMany({ where: { id: r.id, status: { in: ['ESPERANDO', 'LISTA'] } }, data: { status: 'CANCELADA', closedAt: new Date() } })
+    if (claimed.count === 0) throw new BusinessError('Esta reserva ya está cerrada')
     await tx.reservationItem.updateMany({ where: { reservationId: r.id }, data: { allocated: 0 } })
     if (balance > 0 && parsed.data.deposit) await settleDeposit(tx, r.id, session.sub, balance, parsed.data.deposit)
     for (const id of variantIds) await allocateWaiting(tx, id)
@@ -167,7 +189,7 @@ export async function resolveDeposit(input: unknown): Promise<ActionResult> {
   const own = await findOwn(parsed.data.id, session)
   if (!own) return { ok: false, error: 'Reserva no encontrada' }
 
-  const result = await prisma.$transaction(async (tx): Promise<ActionResult> => {
+  const result = await atomically(async (tx): Promise<ActionResult> => {
     const r = await tx.reservation.findUniqueOrThrow({ where: { id: own.id }, include: { payments: true } })
     if ((r.status !== 'CANCELADA' && r.status !== 'VENCIDA') || r.depositResolution) {
       return { ok: false, error: 'Esta reserva no tiene una seña pendiente de resolver' }
@@ -272,4 +294,30 @@ export async function reprintReservation(id: string): Promise<ActionResult> {
   if (!reservation) return { ok: false, error: 'Reserva no encontrada' }
   await prisma.$transaction((tx) => enqueueReservationPrints(tx, reservation.id))
   return { ok: true }
+}
+
+// Devolución parcial de la seña en una reserva abierta (por ejemplo, si la seña quedó por encima del total).
+export async function addRefund(input: unknown): Promise<ActionResult> {
+  const session = await requireRole(['ADMIN', 'VENDEDOR'])
+  const parsed = addDepositSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message }
+  const own = await findOwn(parsed.data.reservationId, session)
+  if (!own) return { ok: false, error: 'Reserva no encontrada' }
+
+  const result = await atomically(async (tx): Promise<ActionResult> => {
+    // Bloquea la reserva: dos devoluciones simultáneas no pueden pasarse de la seña.
+    await tx.$queryRaw`SELECT id FROM "Reservation" WHERE id = ${own.id}::uuid FOR UPDATE`
+    const r = await tx.reservation.findUniqueOrThrow({ where: { id: own.id }, include: { payments: true } })
+    if (r.status !== 'ESPERANDO' && r.status !== 'LISTA') throw new BusinessError('Esta reserva ya está cerrada')
+    if (parsed.data.amount > net(r.payments)) throw new BusinessError('No podés devolver más que la seña cobrada')
+    await tx.reservationPayment.create({
+      data: { reservationId: r.id, kind: 'DEVOLUCION', amount: parsed.data.amount, paymentMethod: parsed.data.paymentMethod, userId: session.sub },
+    })
+    return { ok: true }
+  })
+  if (result.ok) {
+    revalidateReservations()
+    revalidatePath(`/reservas/${own.id}`)
+  }
+  return result
 }

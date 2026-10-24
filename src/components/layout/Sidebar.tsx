@@ -3,10 +3,10 @@ import type { RoleName } from '@/lib/constants'
 import { navItemsFor } from './navItems'
 import { NavLink } from './NavLink'
 
-export function Sidebar({ role }: { role: RoleName }) {
+export function Sidebar({ role, badges }: { role: RoleName; badges?: Record<string, number> }) {
   return (
     <nav className="hidden lg:flex flex-col w-56 shrink-0 border-r border-border p-3 gap-1 print:hidden">
-      {navItemsFor(role).map((item) => <NavLink key={item.href} item={item} />)}
+      {navItemsFor(role).map((item) => <NavLink key={item.href} item={item} badge={badges?.[item.href]} />)}
     </nav>
   )
 }

@@ -6,7 +6,7 @@ import type { RoleName } from '@/lib/constants'
 import { navItemsFor } from './navItems'
 import { NavLink } from './NavLink'
 
-export function NavDrawer({ role }: { role: RoleName }) {
+export function NavDrawer({ role, badges }: { role: RoleName; badges?: Record<string, number> }) {
   const [open, setOpen] = useState(false)
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -24,7 +24,7 @@ export function NavDrawer({ role }: { role: RoleName }) {
             <Dialog.Close aria-label="Cerrar menú" className="p-2 min-h-11 min-w-11"><X size={20} /></Dialog.Close>
           </div>
           {navItemsFor(role).map((item) => (
-            <NavLink key={item.href} item={item} onNavigate={() => setOpen(false)} />
+            <NavLink key={item.href} item={item} badge={badges?.[item.href]} onNavigate={() => setOpen(false)} />
           ))}
         </Dialog.Content>
       </Dialog.Portal>

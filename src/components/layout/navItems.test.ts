@@ -48,3 +48,11 @@ describe('navItemsFor', () => {
     expect(navItemsFor('DEPOSITO').map((i) => i.label)).not.toContain('Clientes')
   })
 })
+
+describe('Reservas', () => {
+  it('aparece para ADMIN y VENDEDOR, no para DEPOSITO', () => {
+    expect(navItemsFor('ADMIN').map((i) => i.label)).toContain('Reservas')
+    expect(navItemsFor('VENDEDOR').map((i) => i.label)).toContain('Reservas')
+    expect(navItemsFor('DEPOSITO').map((i) => i.label)).not.toContain('Reservas')
+  })
+})

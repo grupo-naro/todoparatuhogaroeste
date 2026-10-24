@@ -38,3 +38,14 @@ describe('NavLink', () => {
     expect(onNavigate).toHaveBeenCalled()
   })
 })
+
+describe('NavLink — aviso', () => {
+  it('muestra el número de pendientes cuando hay', () => {
+    render(<NavLink item={item('/reservas', 'Reservas')} badge={3} />)
+    expect(screen.getByLabelText('3 pendientes')).toHaveTextContent('3')
+  })
+  it('no muestra nada con 0 o sin badge', () => {
+    render(<NavLink item={item('/reservas', 'Reservas')} badge={0} />)
+    expect(screen.queryByLabelText(/pendientes/)).not.toBeInTheDocument()
+  })
+})

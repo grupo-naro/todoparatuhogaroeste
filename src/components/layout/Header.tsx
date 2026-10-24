@@ -4,12 +4,12 @@ import { signOut } from '@/server/actions/auth'
 import type { RoleName } from '@/lib/constants'
 import { NavDrawer } from './NavDrawer'
 
-export function Header({ userName, role }: { userName: string; role: RoleName }) {
+export function Header({ userName, role, badges }: { userName: string; role: RoleName; badges?: Record<string, number> }) {
   return (
     <header
       className="border-b border-border flex items-center gap-3 px-4 sticky top-0 bg-background z-20 print:hidden"
       style={{ paddingTop: 'env(safe-area-inset-top)', minHeight: 'calc(3.5rem + env(safe-area-inset-top))' }}>
-      <NavDrawer role={role} />
+      <NavDrawer role={role} badges={badges} />
       <Link href="/">
         <Image src="/logo.png" alt="Jael Castillo — Todo para tu Hogar" width={36} height={36} className="rounded-full shrink-0" priority />
       </Link>

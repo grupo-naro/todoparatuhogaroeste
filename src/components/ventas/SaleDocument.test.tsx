@@ -56,3 +56,16 @@ describe('SaleDocument', () => {
     expect(screen.queryByText(/Venta anulada/)).not.toBeInTheDocument()
   })
 })
+
+describe('SaleDocument con seña', () => {
+  it('con depositApplied muestra la seña y el saldo', () => {
+    render(<SaleDocument sale={{ ...sale, depositApplied: 200 }} />)
+    expect(screen.getByText('Seña:').parentElement).toHaveTextContent(/200,00/)
+    expect(screen.getByText('Saldo:').parentElement).toHaveTextContent(/400,00/)
+  })
+
+  it('sin seña no muestra saldo', () => {
+    render(<SaleDocument sale={sale} />)
+    expect(screen.queryByText('Saldo:')).not.toBeInTheDocument()
+  })
+})

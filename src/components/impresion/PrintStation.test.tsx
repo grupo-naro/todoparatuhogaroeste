@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import { PrintStation } from './PrintStation'
+import { reservationDetail } from '@/components/reservas/reservation.fixture'
 
 const quote = (id: string) => ({
   id, kind: 'PRESUPUESTO' as const,
@@ -122,5 +123,15 @@ describe('PrintStation — versión nueva', () => {
     await tick()
     await tick(5000)
     expect(reload).not.toHaveBeenCalled()
+  })
+})
+
+describe('PrintStation — reservas', () => {
+  it('imprime el comprobante y la hoja de depósito de una reserva', async () => {
+    const reservation = reservationDetail()
+    pendientes = () => json({ jobs: [{ id: 'j1', kind: 'RESERVA', reservation }, { id: 'j2', kind: 'RESERVA_DEPOSITO', reservation }] })
+    render(<PrintStation clave="k" />)
+    await tick()
+    expect(events.filter((e) => e !== 'fetch')).toEqual(['print', 'mark:j1', 'print', 'mark:j2'])
   })
 })

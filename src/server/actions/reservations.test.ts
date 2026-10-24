@@ -141,3 +141,17 @@ describe('addDeposit / markReservationNotified', () => {
     expect((await prisma.reservation.findUniqueOrThrow({ where: { id: r.id } })).notifiedAt).not.toBeNull()
   })
 })
+
+describe('createReservation — impresión', () => {
+  it('encola el comprobante de la clienta y la hoja de depósito', async () => {
+    const res = await createReservation({ items: [{ variantId: silla, quantity: 1 }] })
+    const jobs = await prisma.printJob.findMany()
+    expect(jobs.map((j) => j.kind).sort()).toEqual(['RESERVA', 'RESERVA_DEPOSITO'])
+    expect(jobs.every((j) => j.reservationId === (res as { reservationId: string }).reservationId)).toBe(true)
+  })
+
+  it('si la reserva falla no encola nada', async () => {
+    await createReservation({ items: [{ variantId: sinPrecio, quantity: 1 }] })
+    expect(await prisma.printJob.count()).toBe(0)
+  })
+})

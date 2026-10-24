@@ -4,7 +4,7 @@ import { money, integer, formatDate } from '@/lib/format'
 import { BUSINESS } from '@/lib/business'
 import { ContactFooter } from './ContactFooter'
 
-export type DocumentLine = { description: string; quantity: number; unitPrice: number | null; subtotal: number }
+export type DocumentLine = { description: string; quantity: number; unitPrice: number | null; subtotal: number; note?: string }
 
 // Filas mínimas del cuadro de detalle: el papel impreso siempre tiene renglones de sobra.
 const MIN_ROWS = 11
@@ -28,20 +28,27 @@ function Field({ label, children }: { label: string; children?: ReactNode }) {
   )
 }
 
-function Blank({ label }: { label: string }) {
+function Blank({ label, value }: { label: string; value?: string }) {
   return (
     <p className="flex items-end gap-1 font-semibold uppercase">
       <span className="shrink-0">{label}</span>
-      <span className="flex-1 border-b border-foreground min-w-8" />
+      <span className="flex-1 border-b border-foreground min-w-8 text-right normal-case">{value}</span>
     </p>
   )
 }
 
 export function DocumentSheet({
-  title, ticketNumber, date, customerName, address, sellerName, lines, total, totalLabel, extra, legend,
+  title, ticketNumber, referenceLabel, date, customerName, address, sellerName, lines, total, totalLabel,
+  depositAmount, balance, extra, legend,
 }: {
   title: string
   ticketNumber?: number
+  /** Reemplaza a "Ticket N° …" cuando el documento no es una venta (por ejemplo "Reserva N° 7"). */
+  referenceLabel?: string
+  /** Seña ya cobrada: completa el campo SEÑA. */
+  depositAmount?: number
+  /** Saldo a pagar: se muestra sólo si viene. */
+  balance?: number
   date: Date | string
   customerName?: string | null
   address?: string | null
@@ -62,6 +69,7 @@ export function DocumentSheet({
           <div>
             <p className="text-3xl font-semibold tracking-wide uppercase print:text-5xl">{title}</p>
             {ticketNumber !== undefined && <p className="font-semibold print:text-lg">Ticket N° {ticketNumber}</p>}
+            {ticketNumber === undefined && referenceLabel && <p className="font-semibold print:text-lg">{referenceLabel}</p>}
             <p className="text-muted print:text-[11pt]">Documento no válido como factura</p>
           </div>
           <Image src="/logo.png" alt="" width={80} height={80} loading="eager" className="rounded-full size-12 print:size-20" />
@@ -101,6 +109,7 @@ export function DocumentSheet({
                 {line.unitPrice !== null && line.quantity > 1 && (
                   <span className="text-muted text-xs print:text-[9pt]"> ({money(line.unitPrice)} c/u)</span>
                 )}
+                {line.note && <span className="text-muted text-xs print:text-[9pt]"> — {line.note}</span>}
               </p>
               <p className={`px-3 py-1.5 print:py-2 text-right border-l ${LINE}`}>{money(line.subtotal)}</p>
             </div>
@@ -115,13 +124,13 @@ export function DocumentSheet({
       </section>
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-3 print:gap-y-4">
-        <Blank label="Seña:" />
-        <p className="flex items-end gap-1 font-semibold uppercase">
-          <span className="shrink-0">{totalLabel}:</span>
-          <span className="flex-1 border-b border-foreground min-w-8 text-right normal-case">{money(total)}</span>
-        </p>
+        <Blank label="Seña:" value={depositAmount ? money(depositAmount) : undefined} />
+        <Blank label={`${totalLabel}:`} value={money(total)} />
         <Blank label="Envío:" />
         <Blank label="Dto en efectivo:" />
+        {balance !== undefined && (
+          <div className="col-start-2"><Blank label="Saldo:" value={money(balance)} /></div>
+        )}
       </div>
 
       {extra}

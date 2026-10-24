@@ -16,6 +16,11 @@ export async function enqueueSalePrint(tx: Prisma.TransactionClient, saleId: str
   await tx.printJob.create({ data: { kind: 'VENTA', saleId } })
 }
 
+export async function enqueueReservationPrints(tx: Prisma.TransactionClient, reservationId: string): Promise<void> {
+  await tx.printJob.create({ data: { kind: 'RESERVA', reservationId } })
+  await tx.printJob.create({ data: { kind: 'RESERVA_DEPOSITO', reservationId } })
+}
+
 export async function purgeOldPrintJobs(now: Date = new Date()): Promise<number> {
   const { count } = await prisma.printJob.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - RETENTION_MS) } } })
   return count

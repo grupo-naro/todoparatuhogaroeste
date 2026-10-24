@@ -6,6 +6,8 @@ import { BUILD_ID } from '@/lib/build-id'
 import type { PrintableJob } from '@/server/printing/station'
 import { SaleDocument } from '@/components/ventas/SaleDocument'
 import { QuoteDocument } from '@/components/ventas/QuoteDocument'
+import { ReservationDocument } from '@/components/reservas/ReservationDocument'
+import { ReservationDepositCopy } from '@/components/reservas/ReservationDepositCopy'
 
 const POLL_MS = 5000
 const REQUEST_TIMEOUT_MS = 15000
@@ -121,7 +123,10 @@ export function PrintStation({ clave }: { clave: string }) {
         </div>
       </main>
       <div className="hidden print:block">
-        {current && (current.kind === 'VENTA' ? <SaleDocument sale={current.sale} /> : <QuoteDocument quote={current.quote} />)}
+        {current?.kind === 'VENTA' && <SaleDocument sale={current.sale} />}
+        {current?.kind === 'PRESUPUESTO' && <QuoteDocument quote={current.quote} />}
+        {current?.kind === 'RESERVA' && <ReservationDocument reservation={current.reservation} />}
+        {current?.kind === 'RESERVA_DEPOSITO' && <ReservationDepositCopy reservation={current.reservation} />}
       </div>
     </>
   )

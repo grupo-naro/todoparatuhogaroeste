@@ -5,7 +5,7 @@ import { requireRole } from '@/server/auth/guards'
 import { effectivePrice, toNumber } from '@/lib/pricing'
 import { resolveCustomer } from '@/server/customers/resolve'
 import type { Prisma } from '@prisma/client'
-import { enqueueSalePrint } from '@/server/printing/queue'
+import { enqueueReservationPrints, enqueueSalePrint } from '@/server/printing/queue'
 import { allocateWaiting, availableUnits, lockVariantStock, refreshReservationStatus } from '@/server/reservations/stock'
 import {
   addDepositSchema, cancelReservationSchema, convertReservationSchema, createReservationSchema, resolveDepositSchema,
@@ -70,6 +70,7 @@ export async function createReservation(input: unknown): Promise<CreateReservati
       },
     })
     await refreshReservationStatus(tx, reservation.id)
+    await enqueueReservationPrints(tx, reservation.id)
     return { ok: true, reservationId: reservation.id, number: reservation.number }
   })
 
@@ -262,4 +263,13 @@ export async function convertReservation(input: unknown): Promise<ConvertReserva
     revalidatePath(`/reservas/${own.id}`)
   }
   return result
+}
+
+// Vuelve a imprimir el comprobante de la clienta y la hoja de depósito.
+export async function reprintReservation(id: string): Promise<ActionResult> {
+  const session = await requireRole(['ADMIN', 'VENDEDOR'])
+  const reservation = await findOwn(id, session)
+  if (!reservation) return { ok: false, error: 'Reserva no encontrada' }
+  await prisma.$transaction((tx) => enqueueReservationPrints(tx, reservation.id))
+  return { ok: true }
 }

@@ -107,3 +107,18 @@ describe('markJobPrinted', () => {
     expect(second).toEqual(first)
   })
 })
+
+describe('listPendingJobs — reservas', () => {
+  it('incluye los trabajos de reserva con el detalle', async () => {
+    const r = await prisma.reservation.create({
+      data: { userId, customerName: 'Luna', items: { create: [{ variantId: v1, quantity: 1, allocated: 1, unitPrice: 100 }] } },
+    })
+    await prisma.printJob.create({ data: { kind: 'RESERVA', reservationId: r.id } })
+    await prisma.printJob.create({ data: { kind: 'RESERVA_DEPOSITO', reservationId: r.id } })
+    const jobs = await listPendingJobs()
+    expect(jobs.map((j) => j.kind)).toEqual(['RESERVA', 'RESERVA_DEPOSITO'])
+    const first = jobs[0]
+    if (first.kind !== 'RESERVA') throw new Error('esperaba RESERVA')
+    expect(first.reservation).toMatchObject({ id: r.id, customerName: 'Luna' })
+  })
+})

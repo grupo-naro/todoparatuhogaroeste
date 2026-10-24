@@ -2,11 +2,13 @@ import 'server-only'
 import { timingSafeEqual } from 'node:crypto'
 import { prisma } from '@/server/db'
 import { getSale, type SaleDetail } from '@/server/queries/sales'
+import { getReservation, type ReservationDetail } from '@/server/queries/reservations'
 import { purgeOldPrintJobs, type QuotePayload } from './queue'
 
 export type PrintableJob =
   | { id: string; kind: 'VENTA'; sale: SaleDetail }
   | { id: string; kind: 'PRESUPUESTO'; quote: QuotePayload }
+  | { id: string; kind: 'RESERVA' | 'RESERVA_DEPOSITO'; reservation: ReservationDetail }
 
 const MAX_AGE_MS = 12 * 60 * 60 * 1000
 const MAX_JOBS = 10
@@ -30,6 +32,9 @@ export async function listPendingJobs(now: Date = new Date()): Promise<Printable
     if (row.kind === 'VENTA' && row.saleId) {
       const sale = await getSale(row.saleId)
       if (sale) jobs.push({ id: row.id, kind: 'VENTA', sale })
+    } else if ((row.kind === 'RESERVA' || row.kind === 'RESERVA_DEPOSITO') && row.reservationId) {
+      const reservation = await getReservation(row.reservationId)
+      if (reservation) jobs.push({ id: row.id, kind: row.kind, reservation })
     } else if (row.kind === 'PRESUPUESTO' && row.payload) {
       jobs.push({ id: row.id, kind: 'PRESUPUESTO', quote: row.payload as unknown as QuotePayload })
     }

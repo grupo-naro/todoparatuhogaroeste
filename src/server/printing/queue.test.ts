@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { prisma, resetDb } from '@/test/db'
-import { enqueueSalePrint, enqueueQuotePrint, purgeOldPrintJobs, type QuotePayload } from './queue'
+import { enqueueReservationPrints, enqueueSalePrint, enqueueQuotePrint, purgeOldPrintJobs, type QuotePayload } from './queue'
 
 let saleId: string
 
@@ -53,5 +53,16 @@ describe('purgeOldPrintJobs', () => {
     expect(deleted).toBe(1)
     const left = await prisma.printJob.findMany()
     expect(left.map((j) => j.id)).toEqual([recent.id])
+  })
+})
+
+describe('enqueueReservationPrints', () => {
+  it('crea dos trabajos, RESERVA y RESERVA_DEPOSITO, con el reservationId', async () => {
+    const user = await prisma.user.findFirstOrThrow()
+    const r = await prisma.reservation.create({ data: { userId: user.id } })
+    await prisma.$transaction((tx) => enqueueReservationPrints(tx, r.id))
+    const jobs = await prisma.printJob.findMany()
+    expect(jobs.map((j) => j.kind).sort()).toEqual(['RESERVA', 'RESERVA_DEPOSITO'])
+    expect(jobs.every((j) => j.reservationId === r.id && j.printedAt === null)).toBe(true)
   })
 })

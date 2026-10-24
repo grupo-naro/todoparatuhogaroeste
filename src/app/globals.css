@@ -21,6 +21,9 @@
 
 /* Hoja A4 sin márgenes de página: el navegador no agrega encabezado/pie con la URL;
    el margen interno lo pone .a4-sheet (15mm) en los comprobantes. */
+/* Bandas verde salvia del formulario; sin "exact" el navegador no imprime colores de fondo. */
+.doc-band { background: #d3d8c0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
 @media print {
   @page { size: A4; margin: 0; }
   body { background: #fff !important; }

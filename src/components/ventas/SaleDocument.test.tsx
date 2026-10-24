@@ -12,9 +12,9 @@ describe('SaleDocument', () => {
   it('muestra ticket, vendedora, líneas, total y método de pago', () => {
     render(<SaleDocument sale={sale} />)
     expect(screen.getByText(/Ticket N° 12/)).toBeInTheDocument()
-    expect(screen.getByText(/Vendedora: Ana/)).toBeInTheDocument()
-    expect(screen.getByText(/Sillón Milán · 2 cuerpos/)).toBeInTheDocument()
-    expect(screen.getByText(/Total:/)).toHaveTextContent(/600,00/)
+    expect(screen.getByText('Vendedora:').parentElement).toHaveTextContent('Ana')
+    expect(screen.getByText(/Sillón Milán · 2 cuerpos/)).toHaveTextContent(/2 × .*300,00 c.u/)
+    expect(screen.getByText('Total:').parentElement).toHaveTextContent(/600,00/)
     expect(screen.getByText(/Método de pago:/)).toBeInTheDocument()
   })
 
@@ -33,17 +33,17 @@ describe('SaleDocument', () => {
     expect(container.querySelector('img')).toHaveAttribute('loading', 'eager')
   })
 
-  it('muestra "Envío a" solo cuando hay dirección', () => {
+  it('muestra la dirección de envío cuando existe', () => {
     const { rerender } = render(<SaleDocument sale={sale} />)
-    expect(screen.queryByText(/Envío a/)).not.toBeInTheDocument()
+    expect(screen.getByText('Dirección:').parentElement).not.toHaveTextContent('Siempreviva')
     rerender(<SaleDocument sale={{ ...sale, shippingAddress: 'Av. Siempreviva 742, Merlo' }} />)
-    expect(screen.getByText(/Envío a/)).toHaveTextContent('Av. Siempreviva 742, Merlo')
+    expect(screen.getByText('Dirección:').parentElement).toHaveTextContent('Av. Siempreviva 742, Merlo')
   })
 
   it('incluye el pie con Instagram y contactos', () => {
     render(<SaleDocument sale={sale} />)
     expect(screen.getByText(/@todoparatuhogar_oeste/)).toBeInTheDocument()
-    expect(screen.getByText(/Magalí/)).toBeInTheDocument()
+    expect(screen.getByText(/Venta Mayorista/)).toBeInTheDocument()
   })
 
   it('tiene la hoja A4 como contenedor de impresión', () => {

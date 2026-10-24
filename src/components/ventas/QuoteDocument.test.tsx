@@ -13,16 +13,16 @@ describe('QuoteDocument', () => {
   it('muestra líneas, total, fecha y la leyenda "Presupuesto sin cargo"', () => {
     render(<QuoteDocument quote={quote} />)
     expect(screen.getByText(/Sillón Milán/)).toBeInTheDocument()
-    expect(screen.getByText(/^Total:/)).toHaveTextContent(/600,00/)
+    expect(screen.getByText('Precio de lista:').parentElement).toHaveTextContent(/600,00/)
     expect(screen.getByText(/\d{2}\/\d{2}\/\d{4}/)).toBeInTheDocument()
     expect(screen.getByText(/Presupuesto sin cargo/)).toBeInTheDocument()
   })
 
   it('muestra el cliente solo si existe', () => {
     const { rerender } = render(<QuoteDocument quote={quote} />)
-    expect(screen.queryByText(/Presupuesto para/)).not.toBeInTheDocument()
+    expect(screen.getByText('Nombre y apellido:').parentElement).not.toHaveTextContent('Ana')
     rerender(<QuoteDocument quote={{ ...quote, customerName: 'Ana Gómez' }} />)
-    expect(screen.getByText('Ana Gómez')).toBeInTheDocument()
+    expect(screen.getByText('Nombre y apellido:').parentElement).toHaveTextContent('Ana Gómez')
   })
 
   it('el logo se carga en modo eager para que esté listo al imprimir automáticamente', () => {
@@ -30,17 +30,17 @@ describe('QuoteDocument', () => {
     expect(container.querySelector('img')).toHaveAttribute('loading', 'eager')
   })
 
-  it('muestra "Envío a" solo cuando hay dirección', () => {
+  it('muestra la dirección de envío cuando existe', () => {
     const { rerender } = render(<QuoteDocument quote={quote} />)
-    expect(screen.queryByText(/Envío a/)).not.toBeInTheDocument()
+    expect(screen.getByText('Dirección:').parentElement).not.toHaveTextContent('Siempreviva')
     rerender(<QuoteDocument quote={{ ...quote, shippingAddress: 'Av. Siempreviva 742, Merlo' }} />)
-    expect(screen.getByText(/Envío a/)).toHaveTextContent('Av. Siempreviva 742, Merlo')
+    expect(screen.getByText('Dirección:').parentElement).toHaveTextContent('Av. Siempreviva 742, Merlo')
   })
 
   it('incluye el pie con Instagram y contactos', () => {
     render(<QuoteDocument quote={quote} />)
     expect(screen.getByText(/@todoparatuhogar_oeste/)).toBeInTheDocument()
-    expect(screen.getByText(/Lourdes/)).toBeInTheDocument()
+    expect(screen.getByText(/Venta Minorista/)).toBeInTheDocument()
   })
 
   it('tiene la hoja A4 como contenedor de impresión', () => {

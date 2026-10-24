@@ -15,16 +15,15 @@ describe('QuoteReceipt', () => {
     vi.spyOn(window, 'print').mockImplementation(() => {})
     render(<QuoteReceipt lines={lines} total={600} onNuevoPresupuesto={vi.fn()} />)
     expect(screen.getByText(/Sillón Milán/)).toBeInTheDocument()
-    expect(screen.getByText(/^\$\s*600,00$/)).toBeInTheDocument()
+    expect(screen.getByText('Precio de lista:').parentElement).toHaveTextContent(/600,00/)
   })
 
-  it('muestra "Presupuesto para" solo si se pasa customerName', () => {
+  it('muestra el nombre del cliente solo si se pasa customerName', () => {
     vi.spyOn(window, 'print').mockImplementation(() => {})
     const { rerender } = render(<QuoteReceipt lines={lines} total={600} onNuevoPresupuesto={vi.fn()} />)
-    expect(screen.queryByText(/Presupuesto para/)).not.toBeInTheDocument()
+    expect(screen.getByText('Nombre y apellido:').parentElement).not.toHaveTextContent('Ana')
     rerender(<QuoteReceipt lines={lines} total={600} customerName="Ana Gómez" onNuevoPresupuesto={vi.fn()} />)
-    expect(screen.getByText(/Presupuesto para/)).toBeInTheDocument()
-    expect(screen.getByText('Ana Gómez')).toBeInTheDocument()
+    expect(screen.getByText('Nombre y apellido:').parentElement).toHaveTextContent('Ana Gómez')
   })
 
   it('no muestra vendedora ni método de pago', () => {
@@ -34,12 +33,12 @@ describe('QuoteReceipt', () => {
     expect(screen.queryByText(/Método de pago/)).not.toBeInTheDocument()
   })
 
-  it('muestra "Envío a" solo si se pasa shippingAddress', () => {
+  it('muestra la dirección solo si se pasa shippingAddress', () => {
     vi.spyOn(window, 'print').mockImplementation(() => {})
     const { rerender } = render(<QuoteReceipt lines={lines} total={600} onNuevoPresupuesto={vi.fn()} />)
-    expect(screen.queryByText(/Envío a/)).not.toBeInTheDocument()
+    expect(screen.getByText('Dirección:').parentElement).not.toHaveTextContent('Siempreviva')
     rerender(<QuoteReceipt lines={lines} total={600} shippingAddress="Av. Siempreviva 742" onNuevoPresupuesto={vi.fn()} />)
-    expect(screen.getByText(/Envío a/)).toHaveTextContent('Av. Siempreviva 742')
+    expect(screen.getByText('Dirección:').parentElement).toHaveTextContent('Av. Siempreviva 742')
   })
 
   it('muestra el texto fijo del pie', () => {

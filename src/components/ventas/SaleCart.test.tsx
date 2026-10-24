@@ -207,7 +207,7 @@ describe('SaleCart — modo presupuesto', () => {
     expect(enqueueQuote).toHaveBeenCalledWith({
       items: [{ variantId: 'v1', quantity: 1 }], shippingAddress: 'Av. Siempreviva 742',
     })
-    expect(await screen.findByText(/Envío a/)).toHaveTextContent('Av. Siempreviva 742')
+    expect((await screen.findByText('Dirección:')).parentElement).toHaveTextContent('Av. Siempreviva 742')
   })
 
   it('cambiar de modo con el carrito cargado no lo vacía', async () => {
@@ -235,7 +235,7 @@ describe('SaleCart — modo presupuesto', () => {
     expect(screen.queryByLabelText(/^Cantidad \(/)).not.toBeInTheDocument()
   })
 
-  it('teléfono cargado sin nombre todavía no muestra "Presupuesto para" en el impreso', async () => {
+  it('teléfono cargado sin nombre todavía no completa el nombre en el impreso', async () => {
     vi.spyOn(window, 'print').mockImplementation(() => {})
     searchSellableVariantsAction.mockResolvedValue([variant])
     findCustomerByPhoneAction.mockResolvedValue(null)
@@ -246,7 +246,7 @@ describe('SaleCart — modo presupuesto', () => {
     await userEvent.type(screen.getByLabelText('Teléfono del cliente (opcional)'), '1123456789')
     await screen.findByLabelText('Nombre del cliente') // confirma que ya cargó, sin escribir nada
     await userEvent.click(screen.getByRole('button', { name: 'Generar presupuesto' }))
-    expect(screen.queryByText(/Presupuesto para/)).not.toBeInTheDocument()
+    expect(screen.getByText('Nombre y apellido:').parentElement).toHaveTextContent(/^Nombre y apellido:\s*$/)
   })
 
   it('volver a Venta después de generar un presupuesto restaura la pantalla de armado con el mismo carrito', async () => {

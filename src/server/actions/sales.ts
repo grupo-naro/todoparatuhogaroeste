@@ -3,7 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { prisma } from '@/server/db'
 import { requireRole } from '@/server/auth/guards'
 import { effectivePrice, toNumber } from '@/lib/pricing'
-import { normalizePhone } from '@/lib/phone'
+import { resolveCustomer } from '@/server/customers/resolve'
 import { createSaleSchema } from '@/server/validation/sales'
 import { enqueueSalePrint } from '@/server/printing/queue'
 import { allocateWaiting, availableUnits, lockVariantStock } from '@/server/reservations/stock'
@@ -66,33 +66,9 @@ export async function createSale(input: unknown): Promise<CreateSaleResult> {
       lines.push({ variantId: item.variantId, quantity: item.quantity, unitPrice, subtotal })
     }
 
-    let customerId: string | undefined
-    if (parsed.data.customerPhone) {
-      const phone = normalizePhone(parsed.data.customerPhone)
-      if (phone.length < 6) return { ok: false, error: 'Teléfono inválido' }
-
-      const existing = await tx.customer.findUnique({ where: { phone } })
-      if (existing) {
-        customerId = existing.id
-      } else {
-        const name = parsed.data.customerName?.trim()
-        if (!name) return { ok: false, error: 'Ingresá el nombre para registrar al cliente nuevo' }
-        // upsert en vez de create: si dos ventas simultáneas llegan acá con
-        // el mismo teléfono nuevo, Postgres resuelve el conflicto en un solo
-        // statement atómico (ON CONFLICT) — no hace falta capturar un error
-        // y reintentar. Importante: un catch/retry manual con create() NO
-        // funcionaría de forma confiable acá — un unique-constraint error
-        // dentro de una transacción interactiva de Prisma puede dejar la
-        // transacción de Postgres en estado "aborted", donde cualquier
-        // query posterior (incluido el retry) fallaría también.
-        const customer = await tx.customer.upsert({
-          where: { phone },
-          create: { name, phone },
-          update: {},
-        })
-        customerId = customer.id
-      }
-    }
+    const customer = await resolveCustomer(tx, { phone: parsed.data.customerPhone, name: parsed.data.customerName })
+    if (!customer.ok) return { ok: false, error: customer.error }
+    const customerId = customer.customerId
 
     const sale = await tx.sale.create({
       data: {

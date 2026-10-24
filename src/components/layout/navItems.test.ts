@@ -56,3 +56,11 @@ describe('Reservas', () => {
     expect(navItemsFor('DEPOSITO').map((i) => i.label)).not.toContain('Reservas')
   })
 })
+
+describe('Configuración', () => {
+  it('sólo para ADMIN', () => {
+    expect(navItemsFor('ADMIN').map((i) => i.label)).toContain('Configuración')
+    expect(navItemsFor('VENDEDOR').map((i) => i.label)).not.toContain('Configuración')
+    expect(navItemsFor('DEPOSITO').map((i) => i.label)).not.toContain('Configuración')
+  })
+})

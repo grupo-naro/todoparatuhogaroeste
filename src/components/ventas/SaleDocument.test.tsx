@@ -4,7 +4,7 @@ import { SaleDocument } from './SaleDocument'
 
 const sale = {
   id: 's1', number: 12, createdAt: '2026-10-22T15:00:00.000Z', userName: 'Ana',
-  paymentMethod: 'EFECTIVO' as const, total: 600, cancelledAt: null, cancelledByName: null, shippingAddress: null as string | null,
+  paymentMethod: 'EFECTIVO' as const, total: 600, cancelledAt: null, cancelledByName: null, shippingAddress: null as string | null, depositApplied: 0,
   items: [{ variantId: 'v1', productName: 'Sillón Milán', variantName: '2 cuerpos', quantity: 2, unitPrice: 300, subtotal: 600 }],
 }
 

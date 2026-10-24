@@ -110,3 +110,16 @@ describe('searchSellableVariants con reservas', () => {
     expect(r.quantity).toBe(3)
   })
 })
+
+describe('getSale con seña', () => {
+  it('devuelve depositApplied', async () => {
+    const sale = await prisma.sale.create({
+      data: { userId, paymentMethod: 'EFECTIVO', total: 300, depositApplied: 100, items: { create: [{ variantId: v1, quantity: 1, unitPrice: 300, subtotal: 300 }] } },
+    })
+    expect((await getSale(sale.id))!.depositApplied).toBe(100)
+    const sinSena = await prisma.sale.create({
+      data: { userId, paymentMethod: 'EFECTIVO', total: 300, items: { create: [{ variantId: v1, quantity: 1, unitPrice: 300, subtotal: 300 }] } },
+    })
+    expect((await getSale(sinSena.id))!.depositApplied).toBe(0)
+  })
+})

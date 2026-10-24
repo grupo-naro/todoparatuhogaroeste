@@ -17,3 +17,24 @@ export const createReservationSchema = z.object({
 })
 
 export const addDepositSchema = depositInputSchema.extend({ reservationId: z.string().uuid() })
+
+export const depositDecisionSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('DEVOLVER'), paymentMethod: z.enum(PAYMENT_METHODS, { message: 'Elegí un método de pago' }) }),
+  z.object({ action: z.literal('RETENER') }),
+])
+
+export const cancelReservationSchema = z.object({
+  id: z.string().uuid(),
+  deposit: depositDecisionSchema.optional(),
+})
+
+export const resolveDepositSchema = z.object({
+  id: z.string().uuid(),
+  deposit: depositDecisionSchema,
+})
+
+export const convertReservationSchema = z.object({
+  id: z.string().uuid(),
+  paymentMethod: z.enum(PAYMENT_METHODS, { message: 'Elegí un método de pago' }),
+  priceMode: z.enum(['RESERVA', 'ACTUAL']).optional(),
+})

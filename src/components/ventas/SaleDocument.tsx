@@ -14,7 +14,9 @@ export function SaleDocument({ sale }: { sale: SaleDocumentData }) {
       title="Venta"
       ticketNumber={sale.number}
       date={sale.createdAt}
+      customerName={sale.customerName}
       address={sale.shippingAddress}
+      city={sale.shippingCity}
       sellerName={sale.userName}
       lines={sale.items.map((i) => ({
         description: `${i.productName} · ${i.variantName}`, quantity: i.quantity, unitPrice: i.unitPrice, subtotal: i.subtotal,

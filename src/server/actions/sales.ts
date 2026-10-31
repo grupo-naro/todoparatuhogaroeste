@@ -79,6 +79,7 @@ export async function createSale(input: unknown): Promise<CreateSaleResult> {
         paymentMethod: parsed.data.paymentMethod,
         customerId,
         shippingAddress: parsed.data.shippingAddress || null,
+        shippingCity: parsed.data.shippingCity || null,
         total: total - discount,
         discount,
         discountReason: discount > 0 ? parsed.data.discountReason || null : null,

@@ -144,6 +144,7 @@ model Sale {
   discount      Decimal       @default(0) @db.Decimal(12, 2)
   discountReason String?
   shippingAddress String?
+  shippingCity  String?
   cancelledAt   DateTime?
   cancelledById String?       @db.Uuid
   cancelledBy   User?         @relation("SaleCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
@@ -227,6 +228,7 @@ model Reservation {
   customerName    String?
   customerPhone   String?
   shippingAddress String?
+  shippingCity    String?
   note            String?
   discount        Decimal           @default(0) @db.Decimal(12, 2)
   discountReason  String?

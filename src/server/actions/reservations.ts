@@ -78,6 +78,7 @@ export async function createReservation(input: unknown): Promise<CreateReservati
         customerName: data.customerName || customer.name || null,
         customerPhone: customer.phone ?? null,
         shippingAddress: data.shippingAddress || null,
+        shippingCity: data.shippingCity || null,
         note: data.note || null,
         discount,
         discountReason: discount > 0 ? data.discountReason || null : null,
@@ -273,7 +274,7 @@ export async function convertReservation(input: unknown): Promise<ConvertReserva
     const created = await tx.sale.create({
       data: {
         userId: session.sub, paymentMethod: parsed.data.paymentMethod, customerId: r.customerId,
-        shippingAddress: r.shippingAddress, total, depositApplied: deposit,
+        shippingAddress: r.shippingAddress, shippingCity: r.shippingCity, total, depositApplied: deposit,
         discount, discountReason: discount > 0 ? r.discountReason : null,
         items: { create: sale.map((l) => ({ variantId: l.variantId, quantity: l.quantity, unitPrice: l.unitPrice, subtotal: l.subtotal })) },
       },

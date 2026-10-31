@@ -68,6 +68,8 @@ export type SaleDetail = {
   id: string; number: number; createdAt: Date; userName: string
   paymentMethod: PaymentMethodName; total: number; cancelledAt: Date | null; cancelledByName: string | null
   shippingAddress: string | null
+  shippingCity: string | null
+  customerName: string | null
   depositApplied: number
   discount: number
   discountReason: string | null
@@ -79,6 +81,7 @@ export async function getSale(id: string, opts: { userId?: string } = {}): Promi
     where: { id, ...(opts.userId ? { userId: opts.userId } : {}) },
     include: {
       user: { select: { name: true } },
+      customer: { select: { name: true } },
       cancelledBy: { select: { name: true } },
       items: { include: { variant: { select: { name: true, product: { select: { name: true } } } } } },
     },
@@ -89,6 +92,8 @@ export async function getSale(id: string, opts: { userId?: string } = {}): Promi
     paymentMethod: s.paymentMethod, total: toNumber(s.total) ?? 0,
     cancelledAt: s.cancelledAt, cancelledByName: s.cancelledBy?.name ?? null,
     shippingAddress: s.shippingAddress,
+    shippingCity: s.shippingCity,
+    customerName: s.customer?.name ?? null,
     depositApplied: toNumber(s.depositApplied) ?? 0,
     discount: toNumber(s.discount) ?? 0,
     discountReason: s.discountReason,

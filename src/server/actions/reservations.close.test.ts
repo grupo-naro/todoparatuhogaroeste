@@ -218,3 +218,13 @@ describe('convertReservation con descuento', () => {
     expect(await prisma.sale.count()).toBe(0)
   })
 })
+
+describe('convertReservation — localidad', () => {
+  it('la venta lleva la dirección, la localidad y la clienta de la reserva', async () => {
+    const customer = await prisma.customer.create({ data: { name: 'Luna Paz', phone: '1123456789' } })
+    const r = await reserva('LISTA', [{ variantId: mesa, quantity: 1, allocated: 1 }], [], { shippingCity: 'Merlo', customerId: customer.id })
+    const res = await convertReservation({ id: r.id, paymentMethod: 'EFECTIVO' })
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: (res as { saleId: string }).saleId } })
+    expect(sale).toMatchObject({ shippingAddress: 'Calle 1', shippingCity: 'Merlo', customerId: customer.id })
+  })
+})

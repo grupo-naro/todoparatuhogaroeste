@@ -106,3 +106,15 @@ describe('ReservationForm — descuento', () => {
     expect(screen.getByRole('button', { name: 'Guardar reserva' })).toBeDisabled()
   })
 })
+
+describe('ReservationForm — localidad', () => {
+  it('manda la localidad junto a la dirección', async () => {
+    createReservation.mockResolvedValue({ ok: true, reservationId: 'r9', number: 3 })
+    render(<ReservationForm />)
+    await agregar()
+    await userEvent.type(screen.getByLabelText('Dirección de envío (opcional)'), 'Calle 1')
+    await userEvent.type(screen.getByLabelText('Localidad (opcional)'), 'Merlo')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar reserva' }))
+    expect(createReservation).toHaveBeenCalledWith(expect.objectContaining({ shippingAddress: 'Calle 1', shippingCity: 'Merlo' }))
+  })
+})

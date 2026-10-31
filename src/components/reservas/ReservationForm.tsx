@@ -27,6 +27,7 @@ export function ReservationForm() {
   const [customerName, setCustomerName] = useState('')
   const [foundCustomer, setFoundCustomer] = useState<{ id: string; name: string; phone: string } | null>(null)
   const [shippingAddress, setShippingAddress] = useState('')
+  const [shippingCity, setShippingCity] = useState('')
   const [note, setNote] = useState('')
   const [deposit, setDeposit] = useState('')
   const [discount, setDiscount] = useState('')
@@ -96,6 +97,7 @@ export function ReservationForm() {
       items: cart.map((l) => ({ variantId: l.variantId, quantity: Number(l.quantity) || 0 })),
       ...(customerPhone.trim() ? { customerPhone, customerName: matched?.name ?? customerName } : {}),
       ...(address ? { shippingAddress: address } : {}),
+      ...(shippingCity.trim() ? { shippingCity: shippingCity.trim() } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
       ...(deposit.trim() ? { deposit: { amount: depositAmount, paymentMethod: depositMethod } } : {}),
       ...(discountValue > 0 ? { discount: discountValue, ...(discountReason.trim() ? { discountReason: discountReason.trim() } : {}) } : {}),
@@ -172,11 +174,18 @@ export function ReservationForm() {
         )
       )}
 
-      <label className="flex flex-col gap-1">
-        <span className="text-sm">Dirección de envío (opcional)</span>
-        <Input aria-label="Dirección de envío (opcional)" maxLength={200} value={shippingAddress}
-          onChange={(e) => setShippingAddress(e.target.value)} />
-      </label>
+      <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
+        <label className="flex flex-col gap-1">
+          <span className="text-sm">Dirección de envío (opcional)</span>
+          <Input aria-label="Dirección de envío (opcional)" maxLength={200} value={shippingAddress}
+            onChange={(e) => setShippingAddress(e.target.value)} />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-sm">Localidad (opcional)</span>
+          <Input aria-label="Localidad (opcional)" maxLength={80} value={shippingCity}
+            onChange={(e) => setShippingCity(e.target.value)} />
+        </label>
+      </div>
       <label className="flex flex-col gap-1">
         <span className="text-sm">Nota (opcional)</span>
         <Input aria-label="Nota (opcional)" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} />

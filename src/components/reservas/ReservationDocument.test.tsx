@@ -46,3 +46,10 @@ describe('ReservationDocument con descuento', () => {
     expect(screen.getByText(/Motivo del descuento: sin caja/)).toBeInTheDocument()
   })
 })
+
+describe('ReservationDocument con localidad', () => {
+  it('imprime la localidad en su campo', () => {
+    render(<ReservationDocument reservation={reservationDetail({ shippingCity: 'Merlo' })} />)
+    expect(screen.getByText('Localidad:').parentElement).toHaveTextContent('Merlo')
+  })
+})

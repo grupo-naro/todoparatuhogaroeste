@@ -54,3 +54,15 @@ describe('QuoteDocument', () => {
     expect(screen.queryByText(/Método de pago/)).not.toBeInTheDocument()
   })
 })
+
+describe('QuoteDocument con localidad', () => {
+  it('imprime la localidad en su campo', () => {
+    render(<QuoteDocument quote={{ ...quote, shippingCity: 'Merlo' }} />)
+    expect(screen.getByText('Localidad:').parentElement).toHaveTextContent('Merlo')
+  })
+
+  it('sin localidad queda en blanco', () => {
+    render(<QuoteDocument quote={quote} />)
+    expect(screen.getByText('Localidad:').parentElement).toHaveTextContent(/^Localidad:\s*$/)
+  })
+})

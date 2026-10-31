@@ -7,6 +7,7 @@ export type QuotePayload = {
   total: number
   customerName: string | null
   shippingAddress?: string | null
+  shippingCity?: string | null
   issuedAt: string
 }
 

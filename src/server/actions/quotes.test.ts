@@ -78,3 +78,12 @@ describe('enqueueQuote — dirección de envío', () => {
     expect(await prisma.printJob.count()).toBe(0)
   })
 })
+
+describe('enqueueQuote — localidad', () => {
+  it('guarda la localidad recortada en el payload, o null', async () => {
+    await enqueueQuote({ items: [{ variantId: v1, quantity: 1 }], shippingCity: ' Merlo ' })
+    await enqueueQuote({ items: [{ variantId: v1, quantity: 1 }] })
+    const payloads = (await prisma.printJob.findMany({ orderBy: { createdAt: 'asc' } })).map((j) => (j.payload as QuotePayload).shippingCity)
+    expect(payloads).toEqual(['Merlo', null])
+  })
+})

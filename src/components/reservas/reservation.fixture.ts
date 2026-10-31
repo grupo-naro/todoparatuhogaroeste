@@ -3,7 +3,7 @@ import type { ReservationDetail } from '@/server/queries/reservations'
 export function reservationDetail(over: Partial<ReservationDetail> = {}): ReservationDetail {
   return {
     id: 'r1', number: 7, status: 'ESPERANDO', userName: 'Ana', customerName: 'Luna Paz', customerPhone: '1123456789',
-    shippingAddress: 'Av. Siempreviva 742', note: null,
+    shippingAddress: 'Av. Siempreviva 742', shippingCity: null, note: null,
     createdAt: new Date('2026-10-24T15:00:00.000Z'), readyAt: null, closedAt: null, notifiedAt: null,
     saleId: null, depositResolution: null,
     items: [

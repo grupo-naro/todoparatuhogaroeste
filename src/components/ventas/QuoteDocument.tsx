@@ -5,6 +5,7 @@ export type QuoteDocumentData = {
   total: number
   customerName: string | null
   shippingAddress?: string | null
+  shippingCity?: string | null
   issuedAt: Date | string
 }
 
@@ -15,6 +16,7 @@ export function QuoteDocument({ quote }: { quote: QuoteDocumentData }) {
       date={quote.issuedAt}
       customerName={quote.customerName}
       address={quote.shippingAddress}
+      city={quote.shippingCity}
       lines={quote.lines.map((l) => ({
         description: `${l.productName} · ${l.variantName}`, quantity: l.quantity, unitPrice: l.unitPrice,
         subtotal: (l.unitPrice ?? 0) * l.quantity,

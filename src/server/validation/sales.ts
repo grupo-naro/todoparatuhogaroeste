@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { PAYMENT_METHODS } from '@/lib/constants'
 
 export const shippingAddressSchema = z.string().trim().max(200, 'La dirección es demasiado larga').optional()
+export const shippingCitySchema = z.string().trim().max(80, 'La localidad es demasiado larga').optional()
 
 // Descuento por monto sobre el total, opcional, con un motivo libre.
 export const discountFields = {
@@ -20,5 +21,6 @@ export const createSaleSchema = z.object({
   customerPhone: z.string().trim().optional(),
   customerName: z.string().trim().optional(),
   shippingAddress: shippingAddressSchema,
+  shippingCity: shippingCitySchema,
   ...discountFields,
 })

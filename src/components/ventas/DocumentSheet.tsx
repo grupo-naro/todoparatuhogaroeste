@@ -38,7 +38,7 @@ function Blank({ label, value }: { label: string; value?: string }) {
 }
 
 export function DocumentSheet({
-  title, ticketNumber, referenceLabel, date, customerName, address, sellerName, lines, total, totalLabel,
+  title, ticketNumber, referenceLabel, date, customerName, address, city, sellerName, lines, total, totalLabel,
   depositAmount, balance, discount, discountReason, extra, legend,
 }: {
   title: string
@@ -55,6 +55,7 @@ export function DocumentSheet({
   date: Date | string
   customerName?: string | null
   address?: string | null
+  city?: string | null
   sellerName?: string
   lines: DocumentLine[]
   total: number
@@ -96,7 +97,7 @@ export function DocumentSheet({
         <Field label="Nombre y apellido:">{customerName}</Field>
         <div className="grid grid-cols-[3fr_2fr]">
           <Field label="Dirección:">{address}</Field>
-          <Field label="Localidad:" />
+          <Field label="Localidad:">{city}</Field>
         </div>
         <Field label="Teléfono:" />
         {sellerName && <Field label="Vendedora:">{sellerName}</Field>}

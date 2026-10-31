@@ -132,3 +132,20 @@ describe('getSale con descuento', () => {
     expect(await getSale(sale.id)).toMatchObject({ discount: 30, discountReason: 'mancha', total: 270 })
   })
 })
+
+describe('getSale con localidad y clienta', () => {
+  it('devuelve la localidad y el nombre de la clienta asociada', async () => {
+    const customer = await prisma.customer.create({ data: { name: 'Luna Paz', phone: '1123456789' } })
+    const sale = await prisma.sale.create({
+      data: { userId, paymentMethod: 'EFECTIVO', total: 300, shippingCity: 'Merlo', customerId: customer.id, items: { create: [{ variantId: v1, quantity: 1, unitPrice: 300, subtotal: 300 }] } },
+    })
+    expect(await getSale(sale.id)).toMatchObject({ shippingCity: 'Merlo', customerName: 'Luna Paz' })
+  })
+
+  it('sin clienta ni localidad devuelve null', async () => {
+    const sale = await prisma.sale.create({
+      data: { userId, paymentMethod: 'EFECTIVO', total: 300, items: { create: [{ variantId: v1, quantity: 1, unitPrice: 300, subtotal: 300 }] } },
+    })
+    expect(await getSale(sale.id)).toMatchObject({ shippingCity: null, customerName: null })
+  })
+})

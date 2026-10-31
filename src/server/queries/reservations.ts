@@ -11,7 +11,7 @@ export const RESERVATIONS_PAGE_SIZE = 25
 
 export type ReservationDetail = {
   id: string; number: number; status: ReservationStatusName; userName: string
-  customerName: string | null; customerPhone: string | null; shippingAddress: string | null; note: string | null
+  customerName: string | null; customerPhone: string | null; shippingAddress: string | null; shippingCity: string | null; note: string | null
   createdAt: Date; readyAt: Date | null; closedAt: Date | null; notifiedAt: Date | null
   saleId: string | null; depositResolution: 'DEVUELTA' | 'RETENIDA' | null
   items: { variantId: string; productName: string; variantName: string; quantity: number; allocated: number; unitPrice: number; currentPrice: number | null }[]
@@ -64,7 +64,7 @@ export async function getReservation(id: string, opts: { userId?: string } = {})
   if (!r) return null
   return {
     id: r.id, number: r.number, status: r.status, userName: r.user.name,
-    customerName: r.customerName, customerPhone: r.customerPhone, shippingAddress: r.shippingAddress, note: r.note,
+    customerName: r.customerName, customerPhone: r.customerPhone, shippingAddress: r.shippingAddress, shippingCity: r.shippingCity, note: r.note,
     createdAt: r.createdAt, readyAt: r.readyAt, closedAt: r.closedAt, notifiedAt: r.notifiedAt,
     saleId: r.saleId, depositResolution: r.depositResolution,
     items: r.items.map((i) => ({

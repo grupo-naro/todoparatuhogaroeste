@@ -30,6 +30,7 @@ export function SaleCart() {
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [shippingAddress, setShippingAddress] = useState('')
+  const [shippingCity, setShippingCity] = useState('')
   const [discount, setDiscount] = useState('')
   const [discountReason, setDiscountReason] = useState('')
   const [foundCustomer, setFoundCustomer] = useState<{ id: string; name: string; phone: string } | null>(null)
@@ -102,6 +103,7 @@ export function SaleCart() {
   const matchedCustomer = foundCustomer?.phone === phoneDigits ? foundCustomer : null
   const quoteCustomerName = matchedCustomer?.name || customerName.trim() || undefined
   const address = shippingAddress.trim()
+  const city = shippingCity.trim()
 
   function handleModeChange(next: 'venta' | 'presupuesto') {
     setMode(next)
@@ -113,6 +115,7 @@ export function SaleCart() {
     setCustomerPhone('')
     setCustomerName('')
     setShippingAddress('')
+    setShippingCity('')
     setFoundCustomer(null)
     setShowQuote(false)
   }
@@ -125,6 +128,7 @@ export function SaleCart() {
       items,
       ...(quoteCustomerName ? { customerName: quoteCustomerName } : {}),
       ...(address ? { shippingAddress: address } : {}),
+      ...(city ? { shippingCity: city } : {}),
     })
     setPending(false)
     if (!res.ok) {
@@ -142,6 +146,7 @@ export function SaleCart() {
       items, paymentMethod,
       ...(customerPhone.trim() ? { customerPhone, customerName } : {}),
       ...(address ? { shippingAddress: address } : {}),
+      ...(city ? { shippingCity: city } : {}),
       ...(discountValue > 0 ? { discount: discountValue, ...(discountReason.trim() ? { discountReason: discountReason.trim() } : {}) } : {}),
     })
     setPending(false)
@@ -175,6 +180,7 @@ export function SaleCart() {
           total={total}
           customerName={quoteCustomerName}
           shippingAddress={address || undefined}
+          shippingCity={city || undefined}
           onNuevoPresupuesto={handleNuevoPresupuesto}
         />
       ) : (
@@ -234,12 +240,19 @@ export function SaleCart() {
             )
           )}
 
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Dirección de envío (opcional)</span>
-            <Input aria-label="Dirección de envío (opcional)" autoComplete="street-address" maxLength={200}
-              placeholder="Calle, número y localidad — solo si hay entrega" value={shippingAddress}
-              onChange={(e) => setShippingAddress(e.target.value)} />
-          </label>
+          <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Dirección de envío (opcional)</span>
+              <Input aria-label="Dirección de envío (opcional)" autoComplete="street-address" maxLength={200}
+                placeholder="Calle y número — solo si hay entrega" value={shippingAddress}
+                onChange={(e) => setShippingAddress(e.target.value)} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Localidad (opcional)</span>
+              <Input aria-label="Localidad (opcional)" maxLength={80} value={shippingCity}
+                onChange={(e) => setShippingCity(e.target.value)} />
+            </label>
+          </div>
 
           {mode === 'venta' && (
             <>

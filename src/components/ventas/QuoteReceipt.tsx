@@ -8,8 +8,8 @@ export type QuoteLine = {
   unitPrice: number | null; quantity: string
 }
 
-export function QuoteReceipt({ lines, total, customerName, shippingAddress, onNuevoPresupuesto }: {
-  lines: QuoteLine[]; total: number; customerName?: string; shippingAddress?: string; onNuevoPresupuesto: () => void
+export function QuoteReceipt({ lines, total, customerName, shippingAddress, shippingCity, onNuevoPresupuesto }: {
+  lines: QuoteLine[]; total: number; customerName?: string; shippingAddress?: string; shippingCity?: string; onNuevoPresupuesto: () => void
 }) {
   const [date] = useState(() => new Date())
 
@@ -31,6 +31,7 @@ export function QuoteReceipt({ lines, total, customerName, shippingAddress, onNu
         total,
         customerName: customerName ?? null,
         shippingAddress: shippingAddress ?? null,
+        shippingCity: shippingCity ?? null,
         issuedAt: date,
       }} />
     </section>

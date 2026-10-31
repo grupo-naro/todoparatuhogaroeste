@@ -17,6 +17,7 @@ export function ReservationDocument({ reservation }: { reservation: ReservationD
       date={reservation.createdAt}
       customerName={reservation.customerName}
       address={reservation.shippingAddress}
+      city={reservation.shippingCity}
       lines={reservation.items.map((i) => ({
         description: `${i.productName} · ${i.variantName}`, quantity: i.quantity, unitPrice: i.unitPrice,
         subtotal: i.unitPrice * i.quantity, note: itemNote(i),

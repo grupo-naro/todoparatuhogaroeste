@@ -318,3 +318,23 @@ describe('descuento en la venta', () => {
     expect(res.ok).toBe(true)
   })
 })
+
+describe('localidad de envío', () => {
+  it('guarda la localidad recortada junto a la dirección', async () => {
+    const res = await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO', shippingAddress: 'Calle 1', shippingCity: ' Merlo ' })
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: (res as { saleId: string }).saleId } })
+    expect(sale).toMatchObject({ shippingAddress: 'Calle 1', shippingCity: 'Merlo' })
+  })
+
+  it('sin localidad guarda null', async () => {
+    const res = await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO', shippingCity: '  ' })
+    const sale = await prisma.sale.findUniqueOrThrow({ where: { id: (res as { saleId: string }).saleId } })
+    expect(sale.shippingCity).toBeNull()
+  })
+
+  it('rechaza una localidad de más de 80 caracteres', async () => {
+    const res = await createSale({ items: [{ variantId: v1, quantity: 1 }], paymentMethod: 'EFECTIVO', shippingCity: 'x'.repeat(81) })
+    expect(res.ok).toBe(false)
+    expect(await prisma.sale.count()).toBe(0)
+  })
+})

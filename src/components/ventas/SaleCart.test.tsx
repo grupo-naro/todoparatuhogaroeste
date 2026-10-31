@@ -323,3 +323,38 @@ describe('SaleCart — descuento', () => {
     expect(screen.queryByLabelText('Descuento ($) (opcional)')).not.toBeInTheDocument()
   })
 })
+
+describe('SaleCart — localidad', () => {
+  async function conProducto() {
+    searchSellableVariantsAction.mockResolvedValue([variant])
+    render(<SaleCart />)
+    await userEvent.type(screen.getByLabelText('Buscar producto'), 'milán')
+    await userEvent.click(await findResultButton())
+  }
+
+  it('manda la localidad junto a la dirección al confirmar la venta', async () => {
+    createSale.mockResolvedValue({ ok: true, saleId: 's1', number: 1 })
+    await conProducto()
+    await userEvent.type(screen.getByLabelText('Dirección de envío (opcional)'), 'Calle 1')
+    await userEvent.type(screen.getByLabelText('Localidad (opcional)'), 'Merlo')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar venta' }))
+    expect(createSale).toHaveBeenCalledWith(expect.objectContaining({ shippingAddress: 'Calle 1', shippingCity: 'Merlo' }))
+  })
+
+  it('sin localidad no manda el campo', async () => {
+    createSale.mockResolvedValue({ ok: true, saleId: 's1', number: 1 })
+    await conProducto()
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar venta' }))
+    expect(createSale.mock.calls.at(-1)![0]).not.toHaveProperty('shippingCity')
+  })
+
+  it('el presupuesto manda la localidad y la muestra en el comprobante', async () => {
+    enqueueQuote.mockResolvedValue({ ok: true })
+    await conProducto()
+    await userEvent.click(screen.getByRole('button', { name: 'Presupuesto' }))
+    await userEvent.type(screen.getByLabelText('Localidad (opcional)'), 'Merlo')
+    await userEvent.click(screen.getByRole('button', { name: 'Generar presupuesto' }))
+    expect(enqueueQuote).toHaveBeenCalledWith(expect.objectContaining({ shippingCity: 'Merlo' }))
+    expect((await screen.findByText('Localidad:')).parentElement).toHaveTextContent('Merlo')
+  })
+})

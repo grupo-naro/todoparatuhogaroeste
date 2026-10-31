@@ -4,7 +4,7 @@ import { SaleDocument } from './SaleDocument'
 
 const sale = {
   id: 's1', number: 12, createdAt: '2026-10-22T15:00:00.000Z', userName: 'Ana',
-  paymentMethod: 'EFECTIVO' as const, total: 600, cancelledAt: null, cancelledByName: null, shippingAddress: null as string | null, depositApplied: 0, discount: 0, discountReason: null as string | null,
+  paymentMethod: 'EFECTIVO' as const, total: 600, cancelledAt: null, cancelledByName: null, shippingAddress: null as string | null, depositApplied: 0, shippingCity: null as string | null, customerName: null as string | null, discount: 0, discountReason: null as string | null,
   items: [{ variantId: 'v1', productName: 'Sillón Milán', variantName: '2 cuerpos', quantity: 2, unitPrice: 300, subtotal: 600 }],
 }
 
@@ -86,5 +86,19 @@ describe('SaleDocument con descuento', () => {
   it('con descuento y sin motivo no muestra la línea de motivo', () => {
     render(<SaleDocument sale={{ ...sale, total: 570, discount: 30 }} />)
     expect(screen.queryByText(/Motivo del descuento/)).not.toBeInTheDocument()
+  })
+})
+
+describe('SaleDocument con localidad y clienta', () => {
+  it('imprime la localidad y el nombre de la clienta registrada', () => {
+    render(<SaleDocument sale={{ ...sale, shippingCity: 'Merlo', customerName: 'Luna Paz' }} />)
+    expect(screen.getByText('Localidad:').parentElement).toHaveTextContent('Merlo')
+    expect(screen.getByText('Nombre y apellido:').parentElement).toHaveTextContent('Luna Paz')
+  })
+
+  it('sin clienta ni localidad deja esos campos en blanco', () => {
+    render(<SaleDocument sale={sale} />)
+    expect(screen.getByText('Localidad:').parentElement).toHaveTextContent(/^Localidad:\s*$/)
+    expect(screen.getByText('Nombre y apellido:').parentElement).toHaveTextContent(/^Nombre y apellido:\s*$/)
   })
 })

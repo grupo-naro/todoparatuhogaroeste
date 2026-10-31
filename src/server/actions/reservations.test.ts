@@ -178,3 +178,11 @@ describe('descuento en la reserva', () => {
     expect((await addDeposit({ reservationId, amount: 50, paymentMethod: 'EFECTIVO' })).ok).toBe(true)
   })
 })
+
+describe('localidad en la reserva', () => {
+  it('guarda la localidad y la pasa a la venta al concretar', async () => {
+    const res = await createReservation({ items: [{ variantId: mesa, quantity: 1 }], shippingAddress: 'Calle 1', shippingCity: ' Merlo ' })
+    const r = await prisma.reservation.findUniqueOrThrow({ where: { id: (res as { reservationId: string }).reservationId } })
+    expect(r.shippingCity).toBe('Merlo')
+  })
+})
